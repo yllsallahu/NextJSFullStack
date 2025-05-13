@@ -17,25 +17,30 @@ export default NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email dhe fjalëkalimi janë të detyrueshëm");
-        }
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            throw new Error("Email dhe fjalëkalimi janë të detyrueshëm");
+          }
 
-        const user = await getUser(credentials.email);
-        if (!user) {
-          throw new Error("Email-i nuk ekziston");
-        }
+          const user = await getUser(credentials.email);
+          if (!user) {
+            throw new Error("Email-i nuk ekziston");
+          }
 
-        const isValid = await compare(credentials.password, user.password);
-        if (!isValid) {
-          throw new Error("Fjalëkalimi nuk është i saktë");
-        }
+          const isValid = await compare(credentials.password, user.password);
+          if (!isValid) {
+            throw new Error("Fjalëkalimi nuk është i saktë");
+          }
 
-        return {
-          id: user._id.toString(),
-          email: user.email,
-          name: user.name
-        };
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name
+          };
+        } catch (error) {
+          console.error('Authorization error:', error);
+          throw error;
+        }
       }
     })
   ],
@@ -48,21 +53,18 @@ export default NextAuth({
     maxAge: 30 * 24 * 60 * 60 // 30 days
   },
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.id;
       }
       return session;
     }
   },
-  secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development"
 });

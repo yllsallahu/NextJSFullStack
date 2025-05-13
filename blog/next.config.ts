@@ -1,8 +1,9 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  webpack: (config) => {
+  webpack: (config: any) => {
     config.resolve.fallback = { fs: false };
     return config;
   },

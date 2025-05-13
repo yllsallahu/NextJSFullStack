@@ -6,7 +6,7 @@ export async function createBlog(data: Blog) {
   const db = client.db("myapp");
   const result = await db
     .collection("blogs")
-    .insertOne({ ...data, createdAt: new Date() });
+    .insertOne({ data, createdAt: new Date() });
   return result;
 }
 

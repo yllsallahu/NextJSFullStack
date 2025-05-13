@@ -28,12 +28,19 @@ export default function SignUp() {
       return;
     }
 
+    if (user.password.length < 6) {
+      setError("Fjalëkalimi duhet të jetë të paktën 6 karaktere");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // First register the user
       const registerRes = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify({
           name: user.name,
           email: user.email,
@@ -47,7 +54,7 @@ export default function SignUp() {
         throw new Error(data.error || "Gabim gjatë regjistrimit");
       }
 
-      // Then automatically sign in
+      // Automatically sign in after successful registration
       const signInRes = await signIn("credentials", {
         redirect: false,
         email: user.email,
@@ -58,7 +65,6 @@ export default function SignUp() {
         throw new Error(signInRes.error);
       }
 
-      // Redirect to home page after successful registration and login
       router.push("/");
       
     } catch (err) {
@@ -79,7 +85,7 @@ export default function SignUp() {
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className="sr-only">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
               Emri
             </label>
             <input
@@ -88,12 +94,12 @@ export default function SignUp() {
               required
               value={user.name}
               onChange={(e) => setUser({ ...user, name: e.target.value })}
-              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-              placeholder="Emri"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              placeholder="Emri juaj"
             />
           </div>
           <div>
-            <label htmlFor="email" className="sr-only">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email
             </label>
             <input
@@ -102,12 +108,12 @@ export default function SignUp() {
               required
               value={user.email}
               onChange={(e) => setUser({ ...user, email: e.target.value })}
-              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-              placeholder="Email"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              placeholder="you@example.com"
             />
           </div>
           <div>
-            <label htmlFor="password" className="sr-only">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Fjalëkalimi
             </label>
             <input
@@ -116,12 +122,12 @@ export default function SignUp() {
               required
               value={user.password}
               onChange={(e) => setUser({ ...user, password: e.target.value })}
-              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-              placeholder="Fjalëkalimi"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              placeholder="Minimum 6 karaktere"
             />
           </div>
           <div>
-            <label htmlFor="confirmPassword" className="sr-only">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
               Konfirmo Fjalëkalimin
             </label>
             <input
@@ -130,15 +136,15 @@ export default function SignUp() {
               required
               value={user.confirmPassword}
               onChange={(e) => setUser({ ...user, confirmPassword: e.target.value })}
-              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-              placeholder="Konfirmo Fjalëkalimin"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              placeholder="Konfirmo fjalëkalimin"
             />
           </div>
           <div>
             <button
               type="submit"
               disabled={isLoading}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
                 isLoading
                   ? "bg-green-400 cursor-not-allowed"
                   : "bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
