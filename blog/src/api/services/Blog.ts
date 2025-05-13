@@ -1,21 +1,40 @@
 import clientPromise from "lib/mongodb";
-import { ObjectId } from "mongodb";
-import type { Blog, Comment } from "api/models/Blog";
-import { getUserById } from "./User";
+import { ObjectId, Document, WithId } from "mongodb";
 
-export async function createBlog(blog: Omit<Blog, '_id'>) {
+interface Comment {
+  _id: ObjectId;
+  content: string;
+  author: string;
+  createdAt: Date;
+}
+
+interface BlogDocument {
+  _id?: ObjectId;
+  title: string;
+  content: string;
+  author: string;
+  image?: string;
+  likes: string[];
+  comments: Comment[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function createBlog(blog: Pick<BlogDocument, 'title' | 'content' | 'author' | 'image'>) {
   try {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const result = await db.collection("blogs").insertOne({
+    const newBlog: BlogDocument = {
       ...blog,
       likes: [],
       comments: [],
-      createdAt: new Date()
-    });
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     
-    return result;
+    const result = await db.collection<BlogDocument>("blogs").insertOne(newBlog);
+    return { ...newBlog, _id: result.insertedId };
   } catch (error) {
     console.error('Error in createBlog:', error);
     throw error;
@@ -27,8 +46,8 @@ export async function getBlogs() {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const blogs = await db.collection("blogs")
-      .find({})
+    const blogs = await db.collection<BlogDocument>("blogs")
+      .find()
       .sort({ createdAt: -1 })
       .toArray();
     
@@ -44,9 +63,12 @@ export async function getBlogById(id: string) {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const blog = await db.collection("blogs").findOne({ 
-      _id: new ObjectId(id) 
-    });
+    const blog = await db.collection<BlogDocument>("blogs")
+      .findOne({ _id: new ObjectId(id) } as any);
+    
+    if (!blog) {
+      throw new Error('Blog not found');
+    }
     
     return blog;
   } catch (error) {
@@ -55,15 +77,24 @@ export async function getBlogById(id: string) {
   }
 }
 
-export async function updateBlog(id: string, updates: Partial<Blog>) {
+export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument, 'title' | 'content' | 'image'>>) {
   try {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const result = await db.collection("blogs").updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updates }
+    const result = await db.collection<BlogDocument>("blogs").updateOne(
+      { _id: new ObjectId(id) } as any,
+      { 
+        $set: {
+          ...updates,
+          updatedAt: new Date()
+        }
+      }
     );
+    
+    if (result.matchedCount === 0) {
+      throw new Error('Blog not found');
+    }
     
     return result;
   } catch (error) {
@@ -77,9 +108,13 @@ export async function deleteBlog(id: string) {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const result = await db.collection("blogs").deleteOne({
-      _id: new ObjectId(id)
-    });
+    const result = await db.collection<BlogDocument>("blogs").deleteOne(
+      { _id: new ObjectId(id) } as any
+    );
+    
+    if (result.deletedCount === 0) {
+      throw new Error('Blog not found');
+    }
     
     return result;
   } catch (error) {
@@ -93,28 +128,28 @@ export async function likeBlog(blogId: string, userId: string) {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    // Get current blog to check if user has already liked it
     const blog = await getBlogById(blogId);
-    if (!blog) {
-      throw new Error('Blog not found');
-    }
+    const hasLiked = blog.likes.includes(userId);
     
-    // Initialize likes array if it doesn't exist
-    const likes = Array.isArray(blog.likes) ? blog.likes : [];
-    const hasLiked = likes.includes(userId);
-    
-    // Toggle like
-    const result = await db.collection("blogs").updateOne(
-      { _id: new ObjectId(blogId) },
+    const result = await db.collection<BlogDocument>("blogs").updateOne(
+      { _id: new ObjectId(blogId) } as any,
       {
-        [hasLiked ? '$pull' : '$addToSet']: { likes: userId },
-        $set: { updatedAt: new Date() }
+        $set: { updatedAt: new Date() },
+        ...(hasLiked 
+          ? { $pull: { likes: userId } as any }
+          : { $addToSet: { likes: userId } as any }
+        )
       }
     );
     
-    return {
-      result,
-      currentLikes: hasLiked ? likes.filter(id => id !== userId) : [...likes, userId]
+    if (result.matchedCount === 0) {
+      throw new Error('Blog not found');
+    }
+    
+    const updatedBlog = await getBlogById(blogId);
+    return { 
+      success: true, 
+      likes: updatedBlog.likes 
     };
   } catch (error) {
     console.error('Error in likeBlog:', error);
@@ -122,42 +157,30 @@ export async function likeBlog(blogId: string, userId: string) {
   }
 }
 
-export async function getUserBlogs(userId: string) {
+export async function addComment(blogId: string, commentData: Pick<Comment, 'content' | 'author'>) {
   try {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const blogs = await db.collection("blogs")
-      .find({ author: userId })
-      .sort({ createdAt: -1 })
-      .toArray();
-    
-    return blogs;
-  } catch (error) {
-    console.error('Error in getUserBlogs:', error);
-    throw error;
-  }
-}
-
-export async function addComment(blogId: string, comment: Omit<Comment, '_id'>) {
-  try {
-    const client = await clientPromise;
-    const db = client.db("myapp");
-    
-    const commentWithId = {
-      ...comment,
+    const comment: Comment = {
+      ...commentData,
       _id: new ObjectId(),
       createdAt: new Date()
     };
-      const result = await db.collection("blogs").updateOne(
-      { _id: new ObjectId(blogId) },
+    
+    const result = await db.collection<BlogDocument>("blogs").updateOne(
+      { _id: new ObjectId(blogId) } as any,
       { 
-        $push: { comments: commentWithId as any },
+        $push: { comments: comment } as any,
         $set: { updatedAt: new Date() }
       }
     );
     
-    return { result, comment: commentWithId };
+    if (result.matchedCount === 0) {
+      throw new Error('Blog not found');
+    }
+    
+    return { success: true, comment };
   } catch (error) {
     console.error('Error in addComment:', error);
     throw error;
@@ -169,15 +192,23 @@ export async function deleteComment(blogId: string, commentId: string) {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const result = await db.collection("blogs").updateOne(
-      { _id: new ObjectId(blogId) },
+    const result = await db.collection<BlogDocument>("blogs").updateOne(
+      { _id: new ObjectId(blogId) } as any,
       { 
         $pull: { comments: { _id: new ObjectId(commentId) } } as any,
         $set: { updatedAt: new Date() }
       }
     );
     
-    return result;
+    if (result.matchedCount === 0) {
+      throw new Error('Blog not found');
+    }
+    
+    if (result.modifiedCount === 0) {
+      throw new Error('Comment not found');
+    }
+    
+    return { success: true };
   } catch (error) {
     console.error('Error in deleteComment:', error);
     throw error;

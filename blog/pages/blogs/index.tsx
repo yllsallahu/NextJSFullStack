@@ -53,9 +53,8 @@ export default function BlogsPage() {
       <Header />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">All Blogs</h1>
-          {session && (
+        <div className="flex justify-between items-center mb-8">          <h1 className="text-3xl font-bold">All Blogs</h1>
+          {session?.user?.isSuperUser && (
             <Link
               href="/blogs/create"
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -77,7 +76,7 @@ export default function BlogsPage() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {blogs.map((blog) => (
+            {blogs?.map((blog) => (
               <BlogCard
                 key={blog._id}
                 blog={blog}
@@ -89,7 +88,7 @@ export default function BlogsPage() {
           </div>
         )}
 
-        {!loading && blogs.length === 0 && (
+        {!loading && blogs?.length === 0 && (
           <p className="text-center text-gray-600">No blogs to display.</p>
         )}
       </main>

@@ -126,8 +126,11 @@ export default function ManageUsers() {
     }
   };
 
-  // Handle making a user a superuser
   const handleMakeSuperUser = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to make this user a superuser? This action cannot be undone.')) {
+      return;
+    }
+
     try {
       setLoading(true);
       const res = await fetch('/api/auth/make-superuser', {
@@ -136,11 +139,9 @@ export default function ManageUsers() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ userId }),
-      });
-
+      });      const data = await res.json();
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to update user');
+        throw new Error(data.error || 'Failed to update user');
       }
 
       // Update the local state
@@ -150,7 +151,7 @@ export default function ManageUsers() {
         )
       );
       
-      setSuccessMessage('User promoted to superuser successfully');
+      setSuccessMessage(data.message || 'User promoted to superuser successfully');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError('Failed to promote user');

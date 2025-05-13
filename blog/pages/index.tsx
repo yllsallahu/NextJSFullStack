@@ -112,17 +112,21 @@ export default function HomePage() {
 
         {/* Call to Action Section */}
         <div className="bg-gray-50 py-12">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              {session?.user?.name ? "Dëshironi të krijoni një blog?" : "Dëshironi të merrni pjesë?"}
+          <div className="container mx-auto px-4 text-center">            <h2 className="text-2xl md:text-3xl font-bold mb-4">
+              {!session?.user ? "Dëshironi të merrni pjesë?" :
+               session.user.isSuperUser ? "Dëshironi të krijoni një blog?" :
+               "Shikoni dhe pëlqeni blogjet tona"}
             </h2>
             <p className="text-gray-600 mb-8">
-              {session?.user?.name
+              {!session?.user
+                ? "Regjistrohuni për të ndarë mendimet tuaja dhe për të pëlqyer postimet."
+                : session.user.isSuperUser
                 ? "Ndani mendimet tuaja me komunitetin tonë."
-                : "Regjistrohuni për të ndarë mendimet tuaja dhe për të pëlqyer postimet."}
+                : "Lexoni, komentoni dhe pëlqeni postimet e blogut."}
             </p>
             <Link
-              href={session?.user?.name ? "/blogs" : "/sign-up"}
+              href={!session?.user ? "/sign-up" : 
+                    session.user.isSuperUser ? "/blogs/create" : "/blogs"}
               className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
             >
               {session?.user?.name ? "Krijo Blog" : "Regjistrohu"}

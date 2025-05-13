@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
+import { getToken } from 'next-auth/jwt';
 import { makeSuperUser, getUserById } from 'api/services/User';
 
 export default async function handler(
@@ -11,13 +11,13 @@ export default async function handler(
   }
 
   try {
-    const session = await getSession({ req });
-    if (!session?.user) {
+    const token = await getToken({ req });
+    if (!token?.id) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
     // Check if the current user is a superuser
-    const currentUser = await getUserById(session.user.id);
+    const currentUser = await getUserById(token.id as string);
     if (!currentUser?.isSuperUser) {
       return res.status(403).json({ error: 'Only superusers can promote other users' });
     }

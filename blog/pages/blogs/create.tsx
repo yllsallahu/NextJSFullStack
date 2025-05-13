@@ -9,11 +9,14 @@ import Footer from '@/components/Footer';
 export default function CreateBlog() {
   const { data: session, status } = useSession();
   const router = useRouter();
-
-  // Redirect if not authenticated
+  // Redirect if not authenticated or not a superuser
   useEffect(() => {
-    if (status !== 'loading' && !session) {
-      router.push('/auth/signin');
+    if (status !== 'loading') {
+      if (!session) {
+        router.push('/auth/signin');
+      } else if (!session.user.isSuperUser) {
+        router.push('/blogs');
+      }
     }
   }, [session, status, router]);
 

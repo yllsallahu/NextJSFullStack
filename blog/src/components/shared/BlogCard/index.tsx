@@ -120,6 +120,37 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
       setIsLiking(false);
     }
   };
+  const handleDeleteComment = async (commentId: string) => {
+    if (!session?.user?.isSuperUser) return;
+    
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+
+    try {
+      const res = await fetch(`/api/blogs/comments/${blog._id}/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete comment');
+      }
+
+      // Update local state to remove the comment
+      const updatedBlog = {
+        ...blog,
+        comments: blog.comments?.filter(comment => comment._id !== commentId) || []
+      };
+
+      // Update the blog state immutably
+      onUpdate?.(); // Trigger parent update if provided
+      handleCommentAdded(); // Refresh comments
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -233,10 +264,21 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
             {blog.comments && blog.comments.length > 0 ? (
               <div className="space-y-3">
                 {blog.comments.map((comment) => (
-                  <div key={comment._id} className="bg-gray-50 p-3 rounded">
+                  <div key={comment._id} className="bg-gray-50 p-3 rounded relative group">
                     <p className="text-sm">{comment.content}</p>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {comment.createdAt && formatDate(comment.createdAt)}
+                    <div className="text-xs text-gray-500 mt-1 flex justify-between items-center">
+                      <span>{comment.createdAt && formatDate(comment.createdAt)}</span>
+                      {session?.user?.isSuperUser && (
+                        <button
+                          onClick={() => handleDeleteComment(comment._id as string)}
+                          className="text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          title="Delete comment"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
