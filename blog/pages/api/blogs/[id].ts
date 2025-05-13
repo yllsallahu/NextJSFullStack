@@ -1,17 +1,21 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
+import { getToken } from 'next-auth/jwt';
 import { getBlogById, likeBlog, deleteBlog, updateBlog } from 'api/services/Blog';
+import { getUserById } from 'api/services/User';
 import { ObjectId } from 'mongodb';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
-) {
-  const session = await getSession({ req });
-  console.log("API /api/blogs/[id] session object:", JSON.stringify(session, null, 2)); // <-- ADD THIS LOG
-
-  if (!session?.user) {
+) {  const token = await getToken({ req });
+  if (!token?.id) {
     return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  // Get user to check superuser status
+  const user = await getUserById(token.id);
+  if (!user) {
+    return res.status(401).json({ error: 'User not found' });
   }
 
   const { id } = req.query;
@@ -31,15 +35,14 @@ export default async function handler(
       case 'POST':
         const { action } = req.body;
         
-        if (action === 'like') {
-          const result = await likeBlog(id, session.user.id as string);
+        if (action === 'like') {          const result = await likeBlog(id, token.id as string);
           return res.json(result);
         }
         
         return res.status(400).json({ error: 'Invalid action' });
 
       case 'PATCH':
-        const { title, content } = req.body;
+        const { title, content, image } = req.body;
         if (!title && !content) {
           return res.status(400).json({ error: 'Title or content is required' });
         }
@@ -49,32 +52,29 @@ export default async function handler(
           return res.status(404).json({ error: 'Blog not found' });
         }
         
-        // Only allow author or super user to update
-        if (blogToUpdate.author !== session.user.id && !session.user.isSuperUser) {
-          console.log("API /api/blogs/[id] Authorization check failed: blogToUpdate.author:", blogToUpdate.author, "session.user.id:", session.user.id, "session.user.isSuperUser:", session.user.isSuperUser); // <-- ADD THIS LOG
-          return res.status(403).json({ error: 'Not authorized' });
+        // Only allow author or superuser to update
+        if (blogToUpdate.author !== token.id && !user.isSuperUser) {
+          return res.status(403).json({ error: 'Not authorized - Only the author or superusers can update blogs' });
         }
         
-        const updates: { title?: string; content?: string; updatedAt: Date } = {
+        const updates: { title?: string; content?: string; image?: string | null; updatedAt: Date } = {
           updatedAt: new Date()
         };
         
         if (title) updates.title = title;
         if (content) updates.content = content;
+        if (typeof image === 'string' || image === null) updates.image = image;
         
         const updateResult = await updateBlog(id, updates);
-        return res.json(updateResult);
-
-      case 'DELETE':
+        return res.json(updateResult);      case 'DELETE':
         const blogToDelete = await getBlogById(id);
         if (!blogToDelete) {
           return res.status(404).json({ error: 'Blog not found' });
         }
 
-        // Only allow author or super user to delete
-        if (blogToDelete.author !== session.user.id && !session.user.isSuperUser) {
-          console.log("API /api/blogs/[id] Authorization check failed (DELETE): blogToDelete.author:", blogToDelete.author, "session.user.id:", session.user.id, "session.user.isSuperUser:", session.user.isSuperUser); // <-- ADD THIS LOG
-          return res.status(403).json({ error: 'Not authorized' });
+        // Only allow author or superuser to delete
+        if (blogToDelete.author !== token.id && !user.isSuperUser) {
+          return res.status(403).json({ error: 'Not authorized - Only the author or superusers can delete blogs' });
         }
 
         const deleteResult = await deleteBlog(id);

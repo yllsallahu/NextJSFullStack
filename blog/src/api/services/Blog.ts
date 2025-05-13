@@ -13,7 +13,7 @@ interface BlogDocument {
   title: string;
   content: string;
   author: string;
-  image?: string;
+  image?: string | null;
   likes: string[];
   comments: Comment[];
   createdAt: Date;
@@ -77,7 +77,7 @@ export async function getBlogById(id: string) {
   }
 }
 
-export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument, 'title' | 'content' | 'image'>>) {
+export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument, 'title' | 'content' | 'image'>> & { updatedAt: Date }) {
   try {
     const client = await clientPromise;
     const db = client.db("myapp");
@@ -85,10 +85,7 @@ export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument,
     const result = await db.collection<BlogDocument>("blogs").updateOne(
       { _id: new ObjectId(id) } as any,
       { 
-        $set: {
-          ...updates,
-          updatedAt: new Date()
-        }
+        $set: updates
       }
     );
     

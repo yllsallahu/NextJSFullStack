@@ -27,13 +27,9 @@ export default function EditBlogPage() {
     if (status === 'loading' || !blogId) return;
 
     if (!session) {
-      console.error("Edit page: No session found after loading, redirecting to signin.");
       router.push('/auth/signin');
       return;
     }
-
-    // Log the session object to inspect its contents
-    console.log("Edit page session object:", JSON.stringify(session, null, 2));
 
     const fetchBlog = async () => {
       try {
@@ -44,14 +40,9 @@ export default function EditBlogPage() {
         }
         const blogData: Blog = await res.json();
 
-        // Log details for authorization check
-        console.log("Edit page auth check: blogData.author:", blogData.author, "session.user.id:", session.user.id, "session.user.isSuperUser:", session.user.isSuperUser);
-
-        // Authorization: Check if user can edit this blog
+        // Check authorization: Allow both author and superusers
         if (blogData.author !== session.user.id && !session.user.isSuperUser) {
-          setError('You are not authorized to edit this blog. Ensure you are logged in with the correct account.');
-          // Optionally redirect
-          // router.push('/blogs'); 
+          setError('You do not have permission to edit this blog post');
           setIsLoading(false);
           return;
         }
@@ -59,7 +50,7 @@ export default function EditBlogPage() {
         setTitle(blogData.title);
         setContent(blogData.content);
         setCurrentImageUrl(blogData.image || null);
-        setPreviewUrl(blogData.image || null); // Show current image as preview initially
+        setPreviewUrl(blogData.image || null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -70,29 +61,32 @@ export default function EditBlogPage() {
     fetchBlog();
   }, [session, status, router, blogId]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file type
     if (!file.type.startsWith('image/')) {
-      setError('Please select an image file.');
-      setPreviewUrl(currentImageUrl); // Revert to current image on error
+      setError('Please select an image file');
+      setPreviewUrl(currentImageUrl);
       setImageFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      setError('Image size should not exceed 10MB.');
-      setPreviewUrl(currentImageUrl); // Revert to current image on error
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image size should not exceed 10MB');
+      setPreviewUrl(currentImageUrl);
       setImageFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setImageFile(file);
     setError('');
     
+    // Create preview
     const reader = new FileReader();
     reader.onload = () => {
       setPreviewUrl(reader.result as string);
@@ -120,8 +114,9 @@ export default function EditBlogPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!title.trim() || !content.trim()) {
-      setError('Please fill in all fields');
+      setError('Title and content are required');
       return;
     }
 
@@ -129,20 +124,24 @@ export default function EditBlogPage() {
     setError('');
 
     try {
-      let finalImageUrl = currentImageUrl;
+      let imageUrl = currentImageUrl;
       
-      if (imageFile) { // If a new image was selected
-        finalImageUrl = await uploadImage(imageFile);
-      } else if (previewUrl === null && currentImageUrl !== null) { 
-        // If preview was cleared (image removed) and there was a current image
-        finalImageUrl = null; 
+      if (imageFile) {
+        // Upload new image
+        imageUrl = await uploadImage(imageFile);
+      } else if (previewUrl === null && currentImageUrl !== null) {
+        // Image was removed
+        imageUrl = null;
       }
-
 
       const response = await fetch(`/api/blogs/${blogId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content, image: finalImageUrl }),
+        body: JSON.stringify({ 
+          title, 
+          content,
+          image: imageUrl 
+        }),
       });
 
       if (!response.ok) {
@@ -150,7 +149,7 @@ export default function EditBlogPage() {
         throw new Error(data.error || 'Failed to update blog post');
       }
 
-      router.push(`/blogs/${blogId}`); // Redirect to the blog detail page
+      router.push(`/blogs/${blogId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -165,49 +164,57 @@ export default function EditBlogPage() {
       </div>
     );
   }
-  
+
   if (!session) {
-    // This case should be handled by the useEffect redirect, but as a fallback:
-    return <p>Please sign in to edit this post.</p>;
-  }
-  
-  // If there was an authorization error or other critical fetch error
-  if (error && !title && !content) {
-     return (
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center">
-            <p className="text-red-500 text-xl">{error}</p>
-            <Link href="/blogs" className="mt-4 text-green-600 hover:underline">
-              Go back to blogs
-            </Link>
-          </main>
-          <Footer />
-        </div>
-      );
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4">
+            <p>Please sign in to edit blog posts.</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
+  if (error && !title && !content) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
+            <p>{error}</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <>
       <Head>
         <title>Edit Blog Post</title>
+        <meta name="description" content="Edit your blog post" />
       </Head>
+
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto bg-white shadow-md rounded-lg p-6">
-            <h1 className="text-2xl font-bold mb-6 text-black">Edit Blog Post</h1>
+            <h1 className="text-2xl font-bold mb-6">Edit Blog Post</h1>
             
             {error && (
               <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
                 {error}
               </div>
             )}
-            
+
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label htmlFor="title" className="block text-gray-800 font-medium mb-2">
+                <label htmlFor="title" className="block text-gray-700 font-medium mb-2">
                   Title
                 </label>
                 <input
@@ -215,29 +222,44 @@ export default function EditBlogPage() {
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md p-2"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                   disabled={isSubmitting}
+                  required
                 />
               </div>
-              
+
+              <div className="mb-4">
+                <label htmlFor="content" className="block text-gray-700 font-medium mb-2">
+                  Content
+                </label>
+                <textarea
+                  id="content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  rows={10}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+
               <div className="mb-6">
-                <label htmlFor="image" className="block text-gray-800 font-medium mb-2">
+                <label className="block text-gray-700 font-medium mb-2">
                   Featured Image
                 </label>
-                <div className="flex items-center mb-2">
+                <div className="flex items-center space-x-4">
                   <input
                     type="file"
-                    id="image"
-                    ref={fileInputRef}
-                    onChange={handleImageChange}
                     accept="image/*"
+                    onChange={handleImageChange}
+                    ref={fileInputRef}
                     className="hidden"
                     disabled={isSubmitting}
                   />
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md mr-4 transition-colors"
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
                     disabled={isSubmitting}
                   >
                     {previewUrl ? 'Change Image' : 'Select Image'}
@@ -248,10 +270,9 @@ export default function EditBlogPage() {
                       onClick={() => {
                         setPreviewUrl(null);
                         setImageFile(null);
-                        // Important: also clear the file input so a re-selection of the same file triggers onChange
-                        if(fileInputRef.current) fileInputRef.current.value = ""; 
+                        if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
-                      className="text-red-500 hover:text-red-700 text-sm"
+                      className="text-red-500 hover:text-red-700"
                       disabled={isSubmitting}
                     >
                       Remove Image
@@ -259,43 +280,29 @@ export default function EditBlogPage() {
                   )}
                 </div>
                 {previewUrl && (
-                  <div className="relative w-40 h-24 border rounded-md overflow-hidden">
-                    <Image 
-                      src={previewUrl} 
-                      alt="Preview" 
+                  <div className="mt-4 relative w-full h-48">
+                    <Image
+                      src={previewUrl}
+                      alt="Preview"
                       fill
-                      className="object-cover"
+                      className="object-cover rounded-md"
                     />
                   </div>
                 )}
               </div>
-              
-              <div className="mb-6">
-                <label htmlFor="content" className="block text-gray-800 font-medium mb-2">
-                  Content
-                </label>
-                <textarea
-                  id="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md p-2"
-                  rows={10}
-                  disabled={isSubmitting}
-                ></textarea>
-              </div>
-              
-              <div className="flex justify-end space-x-3">
+
+              <div className="flex justify-end space-x-4">
                 <button
                   type="button"
                   onClick={() => router.back()}
-                  className="bg-gray-500 text-white py-2 px-6 rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50"
+                  className="px-6 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50"
                   disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
