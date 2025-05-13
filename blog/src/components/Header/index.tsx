@@ -1,112 +1,219 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useSession, signOut } from 'next-auth/react';
-import { FaSearch, FaBars, FaHome } from 'react-icons/fa';
+import { isSuperUser } from 'lib/utils';
 
 export default function Header() {
-  const [isNavExpanded, setIsNavExpanded] = useState(false);
   const { data: session } = useSession();
+  const router = useRouter();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="bg-gray-50 text-gray-900 body-font shadow w-full">
-      <div className="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center">
-        {/* Logo */}
-        <Link href="/" className="flex title-font font-medium items-center text-gray-900 mb-4 md:mb-0">
-          <FaHome className="w-10 h-10 text-green-600" />
-          <span className="ml-3 text-xl">Blog</span>
-        </Link>
+    <header className="bg-white shadow-sm">
+      <nav className="container mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <Link href="/" className="text-xl font-bold text-green-600">
+            Blog
+          </Link>
 
-        {/* Navigation Links */}
-        <nav className={`md:ml-auto md:mr-auto flex items-center text-base justify-center ${isNavExpanded ? 'block' : 'hidden'} md:flex`}>
-          <Link href="/" className="mr-5 hover:text-green-600">Kryefaqja</Link>
-          <Link href="/blogs" className="mr-5 hover:text-green-600">Bloget</Link>
-        </nav>
-
-        {/* Search Bar (Desktop) */}
-        <div className="relative mr-4 hidden md:block">
-          <input
-            type="search"
-            name="search"
-            placeholder="Search"
-            className="bg-white text-gray-900 h-10 px-5 pr-10 rounded-full text-sm focus:outline-none"
-          />
-          <button type="submit" className="absolute right-0 top-0 mt-3 mr-4">
-            <FaSearch />
-          </button>
-        </div>
-
-        {/* Auth Actions (Desktop) */}
-        <div className="hidden md:flex items-center space-x-4">
-          {session ? (
-            <>
-              <span className="text-gray-700">Përshëndetje, {session.user?.name || 'User'}!</span>
-              <button
-                onClick={() => signOut()}
-                className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
-              >
-                Dil
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/auth/signin" className="mr-5 hover:text-green-600">Kyçu</Link>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-4">
+            <Link
+              href="/"
+              className={`px-3 py-2 rounded-md ${
+                router.pathname === '/'
+                  ? 'text-green-600'
+                  : 'text-gray-600 hover:text-green-600'
+              }`}
+            >
+              Home
+            </Link>
+            <Link
+              href="/blogs"
+              className={`px-3 py-2 rounded-md ${
+                router.pathname.startsWith('/blogs')
+                  ? 'text-green-600'
+                  : 'text-gray-600 hover:text-green-600'
+              }`}
+            >
+              Blogs
+            </Link>
+            {session?.user?.isSuperUser && (
               <Link
-                href="/sign-up"
-                className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+                href="/admin/users"
+                className={`px-3 py-2 rounded-md ${
+                  router.pathname === '/admin/users'
+                    ? 'text-green-600'
+                    : 'text-gray-600 hover:text-green-600'
+                }`}
               >
-                Regjistrohu
+                Users
               </Link>
-            </>
-          )}
-        </div>
+            )}
 
-        {/* Mobile Menu Toggle */}
-        <button
-          className="text-gray-900 inline-flex items-center ml-auto md:hidden"
-          onClick={() => setIsNavExpanded(!isNavExpanded)}
-        >
-          <FaBars />
-        </button>
-      </div>
-
-      {/* Mobile Navigation & Search */}
-      {isNavExpanded && (
-        <div className="px-4 pt-4 pb-4 md:hidden">
-          <nav className="flex flex-col space-y-3">
-            <Link href="/" className="hover:text-green-600">Kryefaqja</Link>
-            <Link href="/blogs" className="hover:text-green-600">Bloget</Link>
             {session ? (
-              <button
-                onClick={() => signOut()}
-                className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
-              >
-                Dil
-              </button>
+              <>
+                <div className="relative ml-3">
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="flex items-center text-gray-600 hover:text-green-600"
+                  >
+                    <span className="mr-2">{session.user?.name}</span>
+                    <svg
+                      className={`h-5 w-5 transition-transform ${
+                        isMenuOpen ? 'rotate-180' : ''
+                      }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  {isMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-xl z-50">
+                      <Link
+                        href="/blogs/create"
+                        className="block px-4 py-2 text-gray-600 hover:bg-gray-100"
+                      >
+                        Create Blog
+                      </Link>
+                      {session?.user?.isSuperUser && (
+                        <Link
+                          href="/admin/users"
+                          className="block px-4 py-2 text-gray-600 hover:bg-gray-100"
+                        >
+                          Manage Users
+                        </Link>
+                      )}
+                      <button
+                        onClick={() => signOut()}
+                        className="w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <>
-                <Link href="/auth/signin" className="hover:text-green-600">Kyçu</Link>
+                <Link
+                  href="/auth/signin"
+                  className="text-gray-600 hover:text-green-600 px-3 py-2"
+                >
+                  Sign In
+                </Link>
                 <Link
                   href="/sign-up"
-                  className="px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                 >
-                  Regjistrohu
+                  Register
                 </Link>
               </>
             )}
-            <div className="relative mt-2">
-              <input
-                type="search"
-                name="search"
-                placeholder="Search"
-                className="bg-white text-gray-900 h-10 px-5 pr-10 rounded-full text-sm focus:outline-none w-full"
-              />
-              <button type="submit" className="absolute right-0 top-0 mt-3 mr-4">
-                <FaSearch />
-              </button>
-            </div>
-          </nav>
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-gray-600 hover:text-green-600"
+            >
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                {isMenuOpen ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                ) : (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              <Link
+                href="/"
+                className={`block px-3 py-2 rounded-md ${
+                  router.pathname === '/'
+                    ? 'text-green-600'
+                    : 'text-gray-600 hover:text-green-600'
+                }`}
+              >
+                Kryefaqja
+              </Link>
+              <Link
+                href="/blogs"
+                className={`block px-3 py-2 rounded-md ${
+                  router.pathname === '/blogs'
+                    ? 'text-green-600'
+                    : 'text-gray-600 hover:text-green-600'
+                }`}
+              >
+                Bloget
+              </Link>
+
+              {session ? (
+                <>
+                  <Link
+                    href="/blogs"
+                    className="block px-3 py-2 text-gray-600 hover:text-green-600"
+                  >
+                    Bloget e Mia
+                  </Link>
+                  <button
+                    onClick={() => signOut()}
+                    className="block w-full text-left px-3 py-2 text-gray-600 hover:text-green-600"
+                  >
+                    Dilni
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/signin"
+                    className="block px-3 py-2 text-gray-600 hover:text-green-600"
+                  >
+                    Kyçu
+                  </Link>
+                  <Link
+                    href="/sign-up"
+                    className="block px-3 py-2 text-green-600 hover:text-green-700"
+                  >
+                    Regjistrohu
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </nav>
     </header>
   );
 }

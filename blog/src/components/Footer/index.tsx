@@ -1,20 +1,48 @@
-import React from 'react'
+import React from 'react';
+import Link from 'next/link';
 
-function Footer() {
+export default function Footer() {
   return (
-    <footer className="bg-white shadow-md mt-auto">
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center">
-          <p className="text-gray-600">© 2025 Blog. All rights reserved.</p>
+    <footer className="bg-white border-t">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row justify-between items-center">
+          <div className="mb-4 md:mb-0">
+            <Link href="/" className="text-xl font-bold text-green-600">
+              Blog
+            </Link>
+            <p className="text-gray-600 mt-2">
+              © {new Date().getFullYear()} Blog. Të gjitha të drejtat e rezervuara.
+            </p>
+          </div>
+          
           <div className="flex space-x-6">
-            <a href="#" className="text-gray-600 hover:text-green-600">Privacy Policy</a>
-            <a href="#" className="text-gray-600 hover:text-green-600">Terms of Service</a>
-            <a href="#" className="text-gray-600 hover:text-green-600">Contact</a>
+            <Link
+              href="/"
+              className="text-gray-600 hover:text-green-600"
+            >
+              Kryefaqja
+            </Link>
+            <Link
+              href="/blogs"
+              className="text-gray-600 hover:text-green-600"
+            >
+              Bloget
+            </Link>
+            <Link
+              href="/about"
+              className="text-gray-600 hover:text-green-600"
+            >
+              Rreth Nesh
+            </Link>
+            <Link
+              href="/contact"
+              className="text-gray-600 hover:text-green-600"
+            >
+              Kontakti
+            </Link>
           </div>
         </div>
       </div>
     </footer>
   );
 }
-
-export default Footer;

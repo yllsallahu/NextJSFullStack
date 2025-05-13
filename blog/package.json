@@ -9,11 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/formidable": "^3.4.5",
     "bcryptjs": "^3.0.2",
     "classnames": "^2.5.1",
+    "formidable": "^3.5.4",
     "framer-motion": "^12.11.0",
     "lucide-react": "^0.510.0",
     "mongodb": "^6.16.0",
+    "mongoose": "^8.14.2",
     "next": "15.3.2",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",

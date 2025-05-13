@@ -17,30 +17,23 @@ export default NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        try {
-          if (!credentials?.email || !credentials?.password) {
-            throw new Error("Email dhe fjalëkalimi janë të detyrueshëm");
-          }
-
-          const user = await getUser(credentials.email);
-          if (!user) {
-            throw new Error("Email-i nuk ekziston");
-          }
-
-          const isValid = await compare(credentials.password, user.password);
-          if (!isValid) {
-            throw new Error("Fjalëkalimi nuk është i saktë");
-          }
-
-          return {
-            id: user._id.toString(),
-            email: user.email,
-            name: user.name
-          };
-        } catch (error) {
-          console.error('Authorization error:', error);
-          throw error;
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email dhe fjalëkalimi janë të detyrueshëm");
         }
+        const user = await getUser(credentials.email);
+        if (!user) {
+          throw new Error("Email-i nuk ekziston");
+        }
+        const isValid = await compare(credentials.password, user.password);
+        if (!isValid) {
+          throw new Error("Fjalëkalimi nuk është i saktë");
+        }
+        return {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+          isSuperUser: user.isSuperUser || false
+        };
       }
     })
   ],
@@ -56,12 +49,14 @@ export default NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.isSuperUser = user.isSuperUser; // Add isSuperUser to token
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id;
+        session.user.isSuperUser = token.isSuperUser; // Add isSuperUser to session user
       }
       return session;
     }

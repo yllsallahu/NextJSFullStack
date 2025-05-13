@@ -2,8 +2,13 @@ const { MongoClient } = require('mongodb');
 
 async function main() {
     try {
+        // Use direct connection
         const uri = "mongodb+srv://ys68687:yllimali123@nextcluster.amzhxjd.mongodb.net/myapp?retryWrites=true&w=majority";
-        const client = new MongoClient(uri);
+        const client = new MongoClient(uri, { 
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            directConnection: true
+        });
         
         console.log('Connecting to MongoDB...');
         await client.connect();

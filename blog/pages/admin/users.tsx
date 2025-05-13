@@ -1,0 +1,142 @@
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import Head from 'next/head';
+
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  isSuperUser: boolean;
+}
+
+export default function ManageUsers() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Fetch all users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch('/api/admin/users');
+        if (!res.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        setError('Failed to load users');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (session?.user?.isSuperUser) {
+      fetchUsers();
+    } else if (status !== 'loading') {
+      router.push('/');
+    }
+  }, [session, status, router]);
+
+  // Handle making a user a superuser
+  const handleMakeSuperUser = async (userId: string) => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/auth/make-superuser', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to update user');
+      }
+
+      // Update the local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId ? { ...user, isSuperUser: true } : user
+        )
+      );
+      
+      setSuccessMessage('User promoted to superuser successfully');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError('Failed to promote user');
+      setTimeout(() => setError(''), 3000);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (status === 'loading' || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (!session?.user?.isSuperUser) {
+    return null; // Router will redirect, no need to render anything
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Manage Users</title>
+      </Head>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <h1 className="text-2xl font-bold mb-6">Manage Users</h1>
+
+          {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
+          {successMessage && <p className="text-green-500 bg-green-100 p-3 rounded mb-4">{successMessage}</p>}
+
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <ul className="divide-y divide-gray-200">
+              {users.map((user) => (
+                <li key={user._id} className="px-4 py-4 sm:px-6">
+                  <div className="flex items-center justify-between">
+                    <div className="truncate">
+                      <p className="text-sm font-medium text-indigo-600 truncate">
+                        {user.name}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                    <div className="ml-2 flex-shrink-0 flex">
+                      {user.isSuperUser ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Superuser
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleMakeSuperUser(user._id)}
+                          disabled={loading}
+                          className="px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300"
+                        >
+                          Make Superuser
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

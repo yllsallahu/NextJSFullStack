@@ -1,51 +1,42 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
-interface FetchResponse<T> {
-  data?: T[];
+export interface FetchResponse<T> {
+  data: T | null;
   loading: boolean;
   error: string | null;
-  post: (data: any) => Promise<any>;
+  mutate: () => void;
 }
 
-function useFetch<T>(url: string): FetchResponse<T> {
-  const [data, setData] = useState<T[]>();
-  const [loading, setLoading] = useState(true);
+export default function useFetch<T>(url: string): FetchResponse<T> {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const post = async (data: any) => {
+  const fetchData = async () => {
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      return result;
-    } catch (err) {
-      if (err instanceof Error) {
-        return { error: err.message };
+      setLoading(true);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
-      return { error: 'Unknown error occurred' };
+      const json = await response.json();
+      setData(json);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setData(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetch(url)
-      .then((response) => response.json())
-      .then((result) => {
-        setData(result);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+    fetchData();
   }, [url]);
 
-  return { data, loading, error, post };
-}
+  const mutate = () => {
+    fetchData();
+  };
 
-export default useFetch;
+  return { data, loading, error, mutate };
+}

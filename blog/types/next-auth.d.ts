@@ -7,6 +7,7 @@ declare module "next-auth" {
       id: string;
       name?: string | null;
       email?: string | null;
+      isSuperUser?: boolean;
     }
   }
 
@@ -15,13 +16,15 @@ declare module "next-auth" {
     name?: string | null;
     email?: string | null;
     password?: string;
+    isSuperUser?: boolean;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
+    name?: string | null; // Added name as it's often included
     email?: string | null;
-    name?: string | null;
+    isSuperUser?: boolean; // Ensure this line is present
   }
 }
