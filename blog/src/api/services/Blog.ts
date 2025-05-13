@@ -99,18 +99,23 @@ export async function likeBlog(blogId: string, userId: string) {
       throw new Error('Blog not found');
     }
     
+    // Initialize likes array if it doesn't exist
     const likes = Array.isArray(blog.likes) ? blog.likes : [];
     const hasLiked = likes.includes(userId);
     
     // Toggle like
     const result = await db.collection("blogs").updateOne(
       { _id: new ObjectId(blogId) },
-      hasLiked
-        ? { $pull: { likes: userId } } as any
-        : { $addToSet: { likes: userId } } as any
+      {
+        [hasLiked ? '$pull' : '$addToSet']: { likes: userId },
+        $set: { updatedAt: new Date() }
+      }
     );
     
-    return result;
+    return {
+      result,
+      currentLikes: hasLiked ? likes.filter(id => id !== userId) : [...likes, userId]
+    };
   } catch (error) {
     console.error('Error in likeBlog:', error);
     throw error;
@@ -123,7 +128,7 @@ export async function getUserBlogs(userId: string) {
     const db = client.db("myapp");
     
     const blogs = await db.collection("blogs")
-      .find({ authorId: userId })
+      .find({ author: userId })
       .sort({ createdAt: -1 })
       .toArray();
     
@@ -144,11 +149,10 @@ export async function addComment(blogId: string, comment: Omit<Comment, '_id'>) 
       _id: new ObjectId(),
       createdAt: new Date()
     };
-    
-    const result = await db.collection("blogs").updateOne(
+      const result = await db.collection("blogs").updateOne(
       { _id: new ObjectId(blogId) },
       { 
-        $push: { comments: commentWithId } as any,
+        $push: { comments: commentWithId as any },
         $set: { updatedAt: new Date() }
       }
     );

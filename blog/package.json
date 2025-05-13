@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/mongodb-adapter": "^3.9.1",
     "@types/formidable": "^3.4.5",
     "bcryptjs": "^3.0.2",
     "classnames": "^2.5.1",
