@@ -51,7 +51,7 @@ function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        className="w-full border rounded-md p-2 text-sm"
+        className="w-full border rounded-md p-2 text-sm text-black"
         rows={2}
         placeholder="Add a comment..."
         disabled={isSubmitting}
@@ -110,9 +110,9 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
 
       if (!res.ok) throw new Error('Failed to like blog');
 
-      const { currentLikes } = await res.json();
+      const { likes } = await res.json();
       setHasLiked(!hasLiked);
-      setLikeCount(currentLikes.length);
+      setLikeCount(likes.length);
       if (onUpdate) onUpdate();
     } catch (error) {
       console.error('Error liking blog:', error);
@@ -168,12 +168,12 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
       
       <div className="p-4">
         <Link href={`/blogs/${blog._id}`}>
-          <h2 className="text-xl font-bold mb-2 hover:text-indigo-600">
+          <h2 className="text-xl text-black font-bold mb-2 hover:text-indigo-600">
             {blog.title}
           </h2>
         </Link>
         
-        <div className="flex justify-between items-center text-gray-600 text-sm mb-4">
+        <div className="flex justify-between items-center text-black text-sm mb-4">
           <div>
             <p>By {blog.author || 'Anonymous'}</p>
             <p>{blog.createdAt && formatDate(blog.createdAt)}</p>
@@ -221,14 +221,14 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
           )}
         </div>
 
-        <p className="text-gray-600 mb-4 line-clamp-3">{blog.content}</p>
+        <p className="text-black mb-4 line-clamp-3">{blog.content}</p>
         
         <div className="flex items-center space-x-4">
           <button
             onClick={handleLike}
             disabled={isLiking}
             className={`flex items-center space-x-1 ${
-              hasLiked ? 'text-red-500' : 'text-gray-500'
+              hasLiked ? 'text-red-500' : 'text-black'
             } hover:text-red-500 transition-colors`}
           >
             <svg
@@ -248,7 +248,7 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
 
           <button
             onClick={() => setShowComments(!showComments)}
-            className="flex items-center space-x-1 text-gray-500 hover:text-gray-700"
+            className="flex items-center space-x-1 text-black hover:text-gray-700"
           >
             <svg className="h-5 w-5" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
               <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -259,14 +259,14 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
         
         {showComments && (
           <div className="mt-6 border-t pt-4">
-            <h4 className="text-lg font-semibold mb-2">Comments</h4>
+            <h4 className="text-lg font-semibold text-black mb-2">Comments</h4>
             
             {blog.comments && blog.comments.length > 0 ? (
               <div className="space-y-3">
                 {blog.comments.map((comment) => (
-                  <div key={comment._id} className="bg-gray-50 p-3 rounded relative group">
+                  <div key={comment._id} className="bg-gray-50 text-black p-3 rounded relative group">
                     <p className="text-sm">{comment.content}</p>
-                    <div className="text-xs text-gray-500 mt-1 flex justify-between items-center">
+                    <div className="text-xs text-black mt-1 flex justify-between items-center">
                       <span>{comment.createdAt && formatDate(comment.createdAt)}</span>
                       {session?.user?.isSuperUser && (
                         <button
@@ -284,13 +284,13 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-sm">No comments yet.</p>
+              <p className="text-black text-sm">No comments yet.</p>
             )}
             
             {session && <CommentForm blogId={blog._id as string} onCommentAdded={handleCommentAdded} />}
             
             {!session && (
-              <p className="text-sm text-gray-500 mt-3">
+              <p className="text-sm text-black mt-3">
                 Please log in to comment.
               </p>
             )}

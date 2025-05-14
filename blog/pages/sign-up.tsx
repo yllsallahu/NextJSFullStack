@@ -85,7 +85,7 @@ export default function SignUp() {
         )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="name" className="block text-sm font-medium text-black">
               Emri
             </label>
             <input
@@ -94,12 +94,12 @@ export default function SignUp() {
               required
               value={user.name}
               onChange={(e) => setUser({ ...user, name: e.target.value })}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-grey text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="Emri juaj"
             />
           </div>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="block text-sm font-medium text-black">
               Email
             </label>
             <input
@@ -108,12 +108,13 @@ export default function SignUp() {
               required
               value={user.email}
               onChange={(e) => setUser({ ...user, email: e.target.value })}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-grey
+               text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-black">
               Fjalëkalimi
             </label>
             <input
@@ -122,12 +123,12 @@ export default function SignUp() {
               required
               value={user.password}
               onChange={(e) => setUser({ ...user, password: e.target.value })}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-grey text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="Minimum 6 karaktere"
             />
           </div>
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-black">
               Konfirmo Fjalëkalimin
             </label>
             <input
@@ -136,7 +137,7 @@ export default function SignUp() {
               required
               value={user.confirmPassword}
               onChange={(e) => setUser({ ...user, confirmPassword: e.target.value })}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-grey text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="Konfirmo fjalëkalimin"
             />
           </div>

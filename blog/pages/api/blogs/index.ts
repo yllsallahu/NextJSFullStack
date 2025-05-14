@@ -7,11 +7,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const token = await getToken({ req });
-  if (!token) {
-    return res.status(401).json({ error: "Jo i autentifikuar" });
-  }
-
   if (req.method === "GET") {
     try {
       const blogs = await getBlogs();
@@ -23,6 +18,11 @@ export default async function handler(
   } 
   else if (req.method === "POST") {
     try {
+      const token = await getToken({ req });
+      if (!token) {
+        return res.status(401).json({ error: "Jo i autentifikuar" });
+      }
+
       const { title, content, image } = req.body;
       
       // Validate required fields

@@ -31,35 +31,32 @@ export default function EditBlogPage() {
       return;
     }
 
-    const fetchBlog = async () => {
+    const fetchBlogAndCheckAuth = async () => {
       try {
-        setIsLoading(true);
         const res = await fetch(`/api/blogs/${blogId}`);
-        if (!res.ok) {
-          throw new Error('Failed to fetch blog details');
-        }
-        const blogData: Blog = await res.json();
-
-        // Check authorization: Allow both author and superusers
-        if (blogData.author !== session.user.id && !session.user.isSuperUser) {
-          setError('You do not have permission to edit this blog post');
-          setIsLoading(false);
+        if (!res.ok) throw new Error('Failed to fetch blog');
+        const blog = await res.json();
+        
+        // Only allow the author or superusers to edit
+        if (blog.author !== session.user.id && !session.user.isSuperUser) {
+          router.push('/blogs');
           return;
         }
 
-        setTitle(blogData.title);
-        setContent(blogData.content);
-        setCurrentImageUrl(blogData.image || null);
-        setPreviewUrl(blogData.image || null);
+        // If authorized, set the blog data
+        setTitle(blog.title);
+        setContent(blog.content);
+        setCurrentImageUrl(blog.image || null);
+        setIsLoading(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
+        console.error('Error:', err);
+        setError('Failed to load blog');
         setIsLoading(false);
       }
     };
 
-    fetchBlog();
-  }, [session, status, router, blogId]);
+    fetchBlogAndCheckAuth();
+  }, [blogId, router, session, status]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -222,7 +219,7 @@ export default function EditBlogPage() {
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 text-black"
                   disabled={isSubmitting}
                   required
                 />
@@ -237,7 +234,7 @@ export default function EditBlogPage() {
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   rows={10}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 text-black"
                   disabled={isSubmitting}
                   required
                 />

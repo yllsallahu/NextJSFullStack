@@ -46,7 +46,9 @@ export default function HomePage() {
               Mirë se vini në Blog
             </h1>
             <p className="text-xl mb-8">
-              Lexoni dhe ndani mendimet tuaja me komunitetin tonë.
+              {session?.user?.isSuperUser 
+                ? "Lexoni, krijoni dhe menaxhoni blogjet tuaja."
+                : "Lexoni dhe zbuloni përmbajtje interesante."}
             </p>
             {!session && (
               <Link
@@ -129,7 +131,10 @@ export default function HomePage() {
                     session.user.isSuperUser ? "/blogs/create" : "/blogs"}
               className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
             >
-              {session?.user?.name ? "Krijo Blog" : "Regjistrohu"}
+              {session?.user?.isSuperUser 
+                ? (session?.user?.name ? "Krijo Blog" : "Regjistrohu")
+                : (session?.user?.name ? "Shiko Blog" : "Regjistrohu")
+              }
             </Link>
           </div>
         </div>

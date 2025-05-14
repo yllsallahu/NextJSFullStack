@@ -33,7 +33,7 @@ export default function SignIn({ csrfToken }: { csrfToken: string }) {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 mb-4 border rounded"
+              className="w-full px-4 py-2 mb-4 border rounded "
             />
             <input
               type="password"

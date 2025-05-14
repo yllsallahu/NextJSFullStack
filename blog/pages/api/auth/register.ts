@@ -38,6 +38,7 @@ export default async function handler(
       name,
       email,
       password: hashedPassword,
+      isSuperUser: false,
       createdAt: new Date()
     });
 

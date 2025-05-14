@@ -53,13 +53,13 @@ export default function BlogsPage() {
       <Header />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">          <h1 className="text-3xl font-bold">All Blogs</h1>
+        <div className="flex justify-between items-center mb-8">            <h1 className="text-3xl font-bold">Të gjitha Blogjet</h1>
           {session?.user?.isSuperUser && (
             <Link
               href="/blogs/create"
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
             >
-              Create Blog
+              Krijo Blog
             </Link>
           )}
         </div>
@@ -89,7 +89,7 @@ export default function BlogsPage() {
         )}
 
         {!loading && blogs?.length === 0 && (
-          <p className="text-center text-gray-600">No blogs to display.</p>
+          <p className="text-center text-gray-600">Nuk ka blogje për të shfaqur.</p>
         )}
       </main>
 

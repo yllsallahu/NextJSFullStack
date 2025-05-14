@@ -47,7 +47,7 @@ export default function SignIn({ csrfToken }: { csrfToken: string | null }) {
       <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-md">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold">Kyçu në Blog</h2>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-black">
             Mirë se vini përsëri!
           </p>
         </div>
@@ -62,7 +62,7 @@ export default function SignIn({ csrfToken }: { csrfToken: string | null }) {
           {csrfToken && <input name="csrfToken" type="hidden" defaultValue={csrfToken} />}
           
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="block text-sm font-medium text-black">
               Email
             </label>
             <input
@@ -71,13 +71,13 @@ export default function SignIn({ csrfToken }: { csrfToken: string | null }) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-black text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="block text-sm font-medium text-black">
               Fjalëkalimi
             </label>
             <input
@@ -86,7 +86,7 @@ export default function SignIn({ csrfToken }: { csrfToken: string | null }) {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-black text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="••••••••"
             />
           </div>
@@ -105,7 +105,7 @@ export default function SignIn({ csrfToken }: { csrfToken: string | null }) {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-black">
             Nuk keni llogari?{" "}
             <Link href="/sign-up" className="font-medium text-green-600 hover:text-green-500">
               Regjistrohu

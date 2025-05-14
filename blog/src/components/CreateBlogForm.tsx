@@ -172,7 +172,7 @@ export default function CreateBlogForm() {
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full border border-gray-300 rounded-md p-2"
+            className="w-full border border-gray-300 rounded-md p-2 text-black"
             placeholder="Enter blog title"
             disabled={isSubmitting}
           />
@@ -232,7 +232,7 @@ export default function CreateBlogForm() {
             id="content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full border border-gray-300 rounded-md p-2"
+            className="w-full border border-gray-300 rounded-md p-2 text-black"
             rows={10}
             placeholder="Write your blog content"
             disabled={isSubmitting}
