@@ -80,6 +80,12 @@ export default function Header() {
 
                   {isMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 py-2 bg-white rounded-md shadow-xl z-50">
+                      <Link
+                        href="/profile"
+                        className="block px-4 py-2 text-gray-600 hover:bg-gray-100"
+                      >
+                        My Profile
+                      </Link>
                       {session?.user?.isSuperUser && (
                         <Link
                           href="/blogs/create"
@@ -168,7 +174,7 @@ export default function Header() {
                     : 'text-gray-600 hover:text-green-600'
                 }`}
               >
-                Kryefaqja
+                Home
               </Link>
               <Link
                 href="/blogs"
@@ -178,22 +184,30 @@ export default function Header() {
                     : 'text-gray-600 hover:text-green-600'
                 }`}
               >
-                Bloget
+                Blogs
               </Link>
 
               {session ? (
                 <>
                   <Link
-                    href="/blogs"
+                    href="/profile"
                     className="block px-3 py-2 text-gray-600 hover:text-green-600"
                   >
-                    Bloget e Mia
+                    My Profile
                   </Link>
+                  {session?.user?.isSuperUser && (
+                    <Link
+                      href="/blogs/create"
+                      className="block px-3 py-2 text-gray-600 hover:text-green-600"
+                    >
+                      Create Blog
+                    </Link>
+                  )}
                   <button
                     onClick={() => signOut()}
                     className="block w-full text-left px-3 py-2 text-gray-600 hover:text-green-600"
                   >
-                    Dilni
+                    Sign Out
                   </button>
                 </>
               ) : (
@@ -202,13 +216,13 @@ export default function Header() {
                     href="/auth/signin"
                     className="block px-3 py-2 text-gray-600 hover:text-green-600"
                   >
-                    Kyçu
+                    Sign In
                   </Link>
                   <Link
                     href="/sign-up"
                     className="block px-3 py-2 text-green-600 hover:text-green-700"
                   >
-                    Regjistrohu
+                    Register
                   </Link>
                 </>
               )}

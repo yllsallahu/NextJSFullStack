@@ -92,3 +92,119 @@ export async function makeSuperUser(userId: string) {
     throw error;
   }
 }
+
+// Function to handle user from OAuth providers like Google
+export async function getOrCreateOAuthUser(email: string, name: string, provider: string, image?: string, forceLink: boolean = false) {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    console.log(`OAuth login attempt: ${email} (${provider})`);
+    
+    // First attempt to find the user by email
+    let user = await db.collection("users").findOne({ email });
+    
+    // If user doesn't exist, create a new one
+    if (!user) {
+      console.log(`Creating new user for ${email}`);
+      
+      // Check if this is the first user (will be made super user)
+      const userCount = await db.collection("users").countDocuments();
+      const isSuperUser = userCount === 0 ? true : false;
+      
+      const newUser = {
+        name,
+        email,
+        provider,
+        image,
+        isSuperUser,
+        createdAt: new Date(),
+        lastLoginAt: new Date(),
+        oauthLogin: true
+      };
+      
+      const result = await db.collection("users").insertOne(newUser);
+      
+      user = {
+        _id: result.insertedId,
+        ...newUser
+      };
+      
+      console.log(`Created new user via ${provider} OAuth:`, email);
+      
+      // Also add an entry to the accounts collection for compatibility with NextAuth
+      try {
+        await db.collection("accounts").insertOne({
+          userId: result.insertedId,
+          provider: provider,
+          providerAccountId: email, // When we don't have the real provider ID
+          type: "oauth",
+          created_at: new Date(),
+          updated_at: new Date()
+        });
+      } catch (accErr) {
+        console.warn("Non-critical error creating account entry:", accErr);
+      }
+    } else if (!user.provider || forceLink) {
+      console.log(`Updating existing user with OAuth details: ${email}`);
+      // If user exists but doesn't have a provider (was created via credentials),
+      // or if forceLink is true, update the user to mark that they've now used OAuth
+      await db.collection("users").updateOne(
+        { _id: user._id },
+        { 
+          $set: { 
+            provider,
+            image: image || user.image,
+            lastLoginAt: new Date(),
+            oauthLogin: true
+          } 
+        }
+      );
+      
+      // Update the local user object to reflect the changes
+      user.provider = provider;
+      user.oauthLogin = true;
+      if (image && !user.image) {
+        user.image = image;
+      }
+      
+      console.log(`Updated existing user with ${provider} OAuth:`, email);
+    } else {
+      console.log(`User already exists with OAuth: ${email}`);
+      // User exists and has previously used OAuth, just update the lastLoginAt
+      // and update image if provided
+      const updateFields: any = { 
+        lastLoginAt: new Date(),
+        oauthLogin: true 
+      };
+      
+      if (image && !user.image) {
+        updateFields.image = image;
+      }
+      
+      await db.collection("users").updateOne(
+        { _id: user._id },
+        { $set: updateFields }
+      );
+      
+      // Update the local user object
+      user.lastLoginAt = new Date();
+      user.oauthLogin = true;
+      if (image && !user.image) {
+        user.image = image;
+      }
+    }
+    
+    console.log(`OAuth user ready:`, {
+      id: user._id.toString(),
+      email: user.email,
+      provider: user.provider,
+      isSuperUser: user.isSuperUser
+    });
+    
+    return user;
+  } catch (error) {
+    console.error('Error in getOrCreateOAuthUser:', error);
+    throw error;
+  }
+}
