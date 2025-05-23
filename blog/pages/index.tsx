@@ -103,8 +103,12 @@ export default function HomePage() {
       }
     ]
   };
-
   const handleLike = async (blogId: string) => {
+    if (!session) {
+      router.push('/auth/signin');
+      return;
+    }
+
     try {
       const res = await fetch(`/api/blogs/${blogId}`, {
         method: "POST",
@@ -112,7 +116,12 @@ export default function HomePage() {
         body: JSON.stringify({ action: "like" })
       });
 
-      if (!res.ok) throw new Error("Failed to like blog");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to like blog");
+      }
+
+      // Revalidate the data
       mutate();
     } catch (error) {
       console.error("Error liking blog:", error);

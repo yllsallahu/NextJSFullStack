@@ -34,8 +34,11 @@ export default async function handler(
 
       case 'POST':
         const { action } = req.body;
-        
-        if (action === 'like') {          const result = await likeBlog(id, token.id as string);
+          if (action === 'like') {
+          const result = await likeBlog(id, token.id);
+          if (!result.success) {
+            return res.status(400).json({ error: 'Failed to like blog' });
+          }
           return res.json(result);
         }
         

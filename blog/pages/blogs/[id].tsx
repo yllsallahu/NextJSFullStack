@@ -156,9 +156,8 @@ export default function BlogDetail() {
         <main className="flex-grow container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold mb-4">{blog.title}</h1>
-            
-            <div className="flex items-center text-gray-600 mb-6">
-              <p className="mr-4">By {blog.author}</p>
+              <div className="flex items-center text-gray-600 mb-6">
+              <p className="mr-4">By {blog.authorName || 'Anonymous'}</p>
               <p>{formatDate(blog.createdAt)}</p>
             </div>
 
@@ -237,13 +236,14 @@ export default function BlogDetail() {
 
               <div className="space-y-4">
                 {blog.comments && blog.comments.length > 0 ? (
-                  blog.comments.map((comment: Comment) => (
-                    <div key={comment._id} className="bg-gray-50 rounded-lg p-4">
+                  blog.comments.map((comment: Comment) => (                    <div key={comment._id} className="bg-gray-50 rounded-lg p-4">
                       <p className="mb-2">{comment.content}</p>
                       <div className="text-sm text-gray-500">
-                        <p>
-                          {comment.createdAt && formatDate(comment.createdAt)}
-                        </p>
+                        <div className="flex items-center">
+                          <p className="font-medium">{comment.authorName || 'Anonymous'}</p>
+                          <span className="mx-2">•</span>
+                          <p>{comment.createdAt && formatDate(comment.createdAt)}</p>
+                        </div>
                       </div>
                     </div>
                   ))

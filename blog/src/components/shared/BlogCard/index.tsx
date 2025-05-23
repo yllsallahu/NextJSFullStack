@@ -173,9 +173,8 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
           </h2>
         </Link>
         
-        <div className="flex justify-between items-center text-black text-sm mb-4">
-          <div>
-            <p>By {blog.author || 'Anonymous'}</p>
+        <div className="flex justify-between items-center text-black text-sm mb-4">          <div>
+            <p>By {blog.authorName || 'Anonymous'}</p>
             <p>{blog.createdAt && formatDate(blog.createdAt)}</p>
           </div>
           {canManage && (
@@ -263,11 +262,14 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
             
             {blog.comments && blog.comments.length > 0 ? (
               <div className="space-y-3">
-                {blog.comments.map((comment) => (
-                  <div key={comment._id} className="bg-gray-50 text-black p-3 rounded relative group">
+                {blog.comments.map((comment) => (                  <div key={comment._id} className="bg-gray-50 text-black p-3 rounded relative group">
                     <p className="text-sm">{comment.content}</p>
                     <div className="text-xs text-black mt-1 flex justify-between items-center">
-                      <span>{comment.createdAt && formatDate(comment.createdAt)}</span>
+                      <div>
+                        <span className="font-medium">{comment.authorName || 'Anonymous'}</span>
+                        <span className="mx-1">•</span>
+                        <span>{comment.createdAt && formatDate(comment.createdAt)}</span>
+                      </div>
                       {session?.user?.isSuperUser && (
                         <button
                           onClick={() => handleDeleteComment(comment._id as string)}
