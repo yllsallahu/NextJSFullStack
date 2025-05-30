@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUserFavorites } from '../../../hooks/useUserFavorites';
 import { useBlogFavorites } from '../../../hooks/useBlogFavorites';
 import { useFavorites } from '../../../lib/contexts/FavoritesContext';
-import { Blog } from '../../api/models/Blog';
+import { Blog } from '../../../api/models/Blog';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -199,7 +199,7 @@ const FavoritesOverview: React.FC<FavoritesOverviewProps> = ({ className = '' })
                 <p className="text-sm text-gray-500 truncate mb-1">{blog.content.substring(0, 100)}...</p>
                 {blog.tags && blog.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {blog.tags.map(tag => (
+                    {blog.tags.map((tag: string) => (
                       <span 
                         key={tag} 
                         className="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded"

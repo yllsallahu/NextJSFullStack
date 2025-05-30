@@ -4,6 +4,7 @@ import { useFavorites } from '../lib/contexts/FavoritesContext';
 import { useSession } from 'next-auth/react';
 
 interface UseUserFavoritesReturn {
+  favorites: any;
   favoriteCount: number;
   recentFavorites: Blog[];
   hasAnyFavorites: boolean;
@@ -68,6 +69,7 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
   );
 
   return {
+    favorites, // Add the favorites array here
     favoriteCount: favorites.length,
     recentFavorites,
     hasAnyFavorites: favorites.length > 0,

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ReactNode } from 'react';
 
 const CommentSchema = new mongoose.Schema({
   content: {
@@ -69,6 +70,7 @@ export interface Comment {
 }
 
 export interface Blog {
+  description: ReactNode;
   _id?: string;
   title: string;
   content: string;

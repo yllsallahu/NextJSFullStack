@@ -66,6 +66,44 @@ export default function Header() {
                 </Link>
                 
                 <Link
+                  href="/collections"
+                  className={`px-3 py-2 rounded-md flex items-center ${
+                    router.pathname === '/collections' || router.pathname.startsWith('/collections/')
+                      ? 'text-green-600'
+                      : 'text-gray-600 hover:text-green-600'
+                  }`}
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    viewBox="0 0 24 24" 
+                    fill="currentColor"
+                    className="w-4 h-4 mr-1"
+                  >
+                    <path d="M19.5 21a3 3 0 003-3v-4.5a3 3 0 00-3-3h-15a3 3 0 00-3 3V18a3 3 0 003 3h15zM1.5 10.146V6a3 3 0 013-3h5.379a2.25 2.25 0 011.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 013 3v1.146A4.483 4.483 0 0019.5 9h-15a4.483 4.483 0 00-3 1.146z" />
+                  </svg>
+                  Collections
+                </Link>
+                
+                <Link
+                  href="/contact"
+                  className={`px-3 py-2 rounded-md flex items-center ${
+                    router.pathname === '/contact'
+                      ? 'text-green-600'
+                      : 'text-gray-600 hover:text-green-600'
+                  }`}
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    viewBox="0 0 24 24" 
+                    fill="currentColor"
+                    className="w-4 h-4 mr-1"
+                  >
+                    <path fillRule="evenodd" d="M4.804 21.644A6.707 6.707 0 006 21.75a6.721 6.721 0 003.583-1.029c.774.182 1.584.279 2.417.279 5.322 0 9.75-3.97 9.75-9 0-5.03-4.428-9-9.75-9s-9.75 3.97-9.75 9c0 2.142.638 4.125 1.734 5.751a20.77 20.77 0 01-.87 2.693.75.75 0 00.92.992 25.354 25.354 0 01.87-.693zM7.5 15.75c0 .414-.168.75-.375.75S6.75 16.164 6.75 15.75s.168-.75.375-.75.375.336.375.75zm-.375-9.75c.414 0 .75.336.75.75s-.336.75-.75.75h-1.5a.75.75 0 010-1.5h1.5zm6 0c.414 0 .75.336.75.75s-.336.75-.75.75h-3a.75.75 0 010-1.5h3zm-3 3.75a.75.75 0 00-.75.75v3.75a.75.75 0 001.5 0v-3.75a.75.75 0 00-.75-.75z" clipRule="evenodd" />
+                  </svg>
+                  Contact
+                </Link>
+                
+                <Link
                   href="/dashboard"
                   className={`px-3 py-2 rounded-md flex items-center ${
                     router.pathname === '/dashboard'
