@@ -3,6 +3,7 @@ import { Blog, Comment } from 'api/models/Blog';
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import FavoriteButton from '../FavoriteButton';
 
 interface BlogCardProps {
   blog: Blog;
@@ -10,6 +11,7 @@ interface BlogCardProps {
   onDelete?: (blogId: string) => void;
   onEdit?: (blogId: string) => void;
   onUpdate?: () => void;
+  favorites?: string[];
 }
 
 interface CommentFormProps {
@@ -67,7 +69,7 @@ function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
   );
 }
 
-export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardProps) {
+export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites = [] }: BlogCardProps) {
   const { data: session } = useSession();
   const userId = session?.user?.id;
   const [hasLiked, setHasLiked] = useState(blog.likes?.includes(userId as string));
@@ -76,6 +78,7 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
   const [commentsUpdated, setCommentsUpdated] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(favorites.includes(blog._id as string));
 
   const canManage = userId === blog.author || session?.user?.isSuperUser;
   
@@ -150,6 +153,10 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
     } catch (error) {
       console.error('Error deleting comment:', error);
     }
+  };
+
+  const handleFavoriteToggle = () => {
+    setIsFavorited(!isFavorited);
   };
 
   return (
@@ -255,6 +262,14 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate }: BlogCardP
             </svg>
             <span>{blog.comments?.length || 0}</span>
           </button>
+          
+          {session && (
+            <FavoriteButton 
+              blogId={blog._id as string} 
+              isFavorited={isFavorited} 
+              onToggleFavorite={handleFavoriteToggle} 
+            />
+          )}
         </div>
         
         {showComments && (

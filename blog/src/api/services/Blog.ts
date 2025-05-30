@@ -8,7 +8,7 @@ interface Comment {
   createdAt: Date;
 }
 
-interface BlogDocument {
+export interface BlogDocument {
   _id?: ObjectId;
   title: string;
   content: string;
@@ -208,6 +208,83 @@ export async function deleteComment(blogId: string, commentId: string) {
     return { success: true };
   } catch (error) {
     console.error('Error in deleteComment:', error);
+    throw error;
+  }
+}
+
+export async function favoriteBlogs(userId: string, blogId: string) {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    // Check if the user has already favorited this blog
+    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) } as any);
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    // Initialize favorites array if it doesn't exist
+    if (!user.favorites) {
+      await db.collection("users").updateOne(
+        { _id: new ObjectId(userId) } as any,
+        { $set: { favorites: [] } }
+      );
+    }
+    
+    const hasFavorited = user.favorites && user.favorites.some((id: string) => id === blogId);
+    
+    // Toggle favorite status
+    const result = await db.collection("users").updateOne(
+      { _id: new ObjectId(userId) } as any,
+      hasFavorited
+        ? { $pull: { favorites: blogId } as any }
+        : { $addToSet: { favorites: blogId } as any }
+    );
+    
+    if (result.matchedCount === 0) {
+      throw new Error('User not found');
+    }
+    
+    // Get updated user to return current favorites
+    const updatedUser = await db.collection("users").findOne({ _id: new ObjectId(userId) } as any);
+    
+    return { 
+      success: true, 
+      favorites: updatedUser?.favorites || [],
+      isFavorited: !hasFavorited
+    };
+  } catch (error) {
+    console.error('Error in favoriteBlogs:', error);
+    throw error;
+  }
+}
+
+export async function getFavoriteBlogs(userId: string) {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    // Get user's favorite blog IDs
+    const user = await db.collection("users").findOne(
+      { _id: new ObjectId(userId) } as any,
+      { projection: { favorites: 1 } }
+    );
+    
+    if (!user || !user.favorites || user.favorites.length === 0) {
+      return [];
+    }
+    
+    // Get the actual blog documents
+    const favoriteIds = user.favorites.map((id: string) => new ObjectId(id));
+    const favoriteBlogs = await db.collection<BlogDocument>("blogs")
+      .find({ _id: { $in: favoriteIds } } as any)
+      .sort({ createdAt: -1 })
+      .toArray();
+    
+    return favoriteBlogs;
+  } catch (error) {
+    console.error('Error in getFavoriteBlogs:', error);
     throw error;
   }
 }
