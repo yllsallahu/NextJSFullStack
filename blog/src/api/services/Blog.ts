@@ -1,12 +1,11 @@
-import { ObjectId, Document, WithId } from 'mongodb';
-import clientPromise from '@/lib/mongodb';
+import clientPromise from "lib/mongodb";
+import { ObjectId, Document, WithId } from "mongodb";
 
 interface Comment {
   _id: ObjectId;
   content: string;
   author: string;
   createdAt: Date;
-  authorName?: string; // Optional here, will be populated on the server
 }
 
 interface BlogDocument {
@@ -48,89 +47,9 @@ export async function getBlogs() {
     const db = client.db("myapp");
     
     const blogs = await db.collection<BlogDocument>("blogs")
-      .aggregate([
-        {
-          $lookup: {
-            from: "users",
-            localField: "author",
-            foreignField: "_id",
-            as: "authorDetails"
-          }
-        },
-        {
-          $unwind: "$authorDetails"
-        },
-        {
-          $addFields: {
-            authorName: "$authorDetails.name"
-          }
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "comments.author",
-            foreignField: "_id",
-            as: "commentAuthors"
-          }
-        },
-        {
-          $addFields: {
-            comments: {
-              $map: {
-                input: "$comments",
-                as: "comment",
-                in: {
-                  $mergeObjects: [
-                    "$$comment",
-                    {
-                      authorName: {
-                        $let: {
-                          vars: {
-                            author: {
-                              $arrayElemAt: [
-                                {
-                                  $filter: {
-                                    input: "$commentAuthors",
-                                    cond: { $eq: ["$$this._id", { $toObjectId: "$$comment.author" }] }
-                                  }
-                                },
-                                0
-                              ]
-                            }
-                          },
-                          in: "$$author.name"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          $project: {
-            authorDetails: 0,
-            commentAuthors: 0
-          }        },
-        {
-          $project: {
-            _id: 1,
-            title: 1,
-            content: 1,
-            author: 1,
-            authorName: 1,
-            image: 1,
-            likes: 1,
-            comments: 1,
-            createdAt: 1,
-            updatedAt: 1
-          }
-        },
-        {
-          $sort: { createdAt: -1 }
-        }
-      ]).toArray();
+      .find()
+      .sort({ createdAt: -1 })
+      .toArray();
     
     return blogs;
   } catch (error) {
@@ -144,77 +63,8 @@ export async function getBlogById(id: string) {
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    const [blog] = await db.collection<BlogDocument>("blogs")
-      .aggregate([
-        {
-          $match: { _id: new ObjectId(id) }
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "author",
-            foreignField: "_id",
-            as: "authorDetails"
-          }
-        },
-        {
-          $unwind: "$authorDetails"
-        },
-        {
-          $addFields: {
-            authorName: "$authorDetails.name"
-          }
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "comments.author",
-            foreignField: "_id",
-            as: "commentAuthors"
-          }
-        },
-        {
-          $addFields: {
-            comments: {
-              $map: {
-                input: "$comments",
-                as: "comment",
-                in: {
-                  $mergeObjects: [
-                    "$$comment",
-                    {
-                      authorName: {
-                        $let: {
-                          vars: {
-                            author: {
-                              $arrayElemAt: [
-                                {
-                                  $filter: {
-                                    input: "$commentAuthors",
-                                    cond: { $eq: ["$$this._id", { $toObjectId: "$$comment.author" }] }
-                                  }
-                                },
-                                0
-                              ]
-                            }
-                          },
-                          in: "$$author.name"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        {
-          $project: {
-            authorDetails: 0,
-            commentAuthors: 0
-          }
-        }
-      ]).toArray();
+    const blog = await db.collection<BlogDocument>("blogs")
+      .findOne({ _id: new ObjectId(id) } as any);
     
     if (!blog) {
       throw new Error('Blog not found');
@@ -309,14 +159,10 @@ export async function addComment(blogId: string, commentData: Pick<Comment, 'con
     const client = await clientPromise;
     const db = client.db("myapp");
     
-    // Get the author's name
-    const user = await db.collection('users').findOne({ _id: new ObjectId(commentData.author) });
-    
     const comment: Comment = {
       ...commentData,
       _id: new ObjectId(),
-      createdAt: new Date(),
-      authorName: user?.name || 'Anonymous'
+      createdAt: new Date()
     };
     
     const result = await db.collection<BlogDocument>("blogs").updateOne(

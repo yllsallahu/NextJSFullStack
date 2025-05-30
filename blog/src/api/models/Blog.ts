@@ -65,7 +65,6 @@ export interface Comment {
   _id?: string;
   content: string;
   author: string;
-  authorName?: string;
   createdAt?: Date;
 }
 
@@ -74,7 +73,6 @@ export interface Blog {
   title: string;
   content: string;
   author: string;
-  authorName?: string;
   image?: string | null;
   likes?: string[];
   comments?: Comment[];
