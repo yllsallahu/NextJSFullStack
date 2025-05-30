@@ -9,10 +9,11 @@ import { compare } from "bcryptjs";
 import { getUser, getOrCreateOAuthUser } from "api/services/User";
 import type { JWT } from "next-auth/jwt";
 import { CustomUser, DbUser } from "../../../types/user";
+import { Adapter } from "next-auth/adapters";  // Import Adapter type
 
 // Create the options object for better typing
 const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(clientPromise),
+  adapter: MongoDBAdapter(clientPromise) as Adapter,  // Add type assertion here
   // Force cookie handling using secure cookies for the session
   useSecureCookies: process.env.NODE_ENV === "production",
   cookies: {

@@ -9,6 +9,7 @@ interface Comment {
 }
 
 export interface BlogDocument {
+  description: string; // Changed from ReactNode to string
   _id?: ObjectId;
   title: string;
   content: string;
@@ -30,7 +31,8 @@ export async function createBlog(blog: Pick<BlogDocument, 'title' | 'content' | 
       likes: [],
       comments: [],
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      description: ""
     };
     
     const result = await db.collection<BlogDocument>("blogs").insertOne(newBlog);

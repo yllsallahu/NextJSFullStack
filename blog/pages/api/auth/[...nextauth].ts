@@ -7,10 +7,11 @@ import clientPromise from "../../../src/lib/mongodb";
 import { compare } from "bcryptjs";
 import { getUser, getOrCreateOAuthUser } from "../../../src/api/services/User";
 import { linkOAuthAccount, hasCredentialsAccount } from "../../../src/api/services/linkAccountFix";
+import { Adapter } from "next-auth/adapters";  // Import Adapter type
 
 // Define the auth options
 export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(clientPromise),
+  adapter: MongoDBAdapter(clientPromise) as Adapter,  // Add type assertion here
   useSecureCookies: process.env.NODE_ENV === "production",
   cookies: {
     sessionToken: {

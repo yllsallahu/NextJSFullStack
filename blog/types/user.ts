@@ -19,15 +19,17 @@ export interface DbUser extends Omit<CustomUser, 'id'> {
 
 declare module 'next-auth' {
   interface User extends IUser {}
-  interface Session extends DefaultSession {
-    user?: CustomUser;
+  interface Session {
+    user: CustomUser;
   }
 }
 
 declare module 'next-auth/jwt' {
-  interface JWT extends DefaultJWT {
-    id?: string;
+  // Fix: Make sure id has consistent modifiers with other declarations
+  interface JWT {
+    id: string;  // Remove the optional modifier
     isSuperUser?: boolean;
     provider?: string;
+    picture?: string;
   }
 }

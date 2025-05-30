@@ -8,7 +8,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Check for authentication
   const session = await getServerSession(req, res, authOptions);
   
-  if (!session || !session.user.id) {
+  // Ensure session and session.user.id are defined
+  if (!session?.user?.id) {
     return res.status(401).json({ error: 'You must be signed in to manage collections' });
   }
 

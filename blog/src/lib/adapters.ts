@@ -10,6 +10,7 @@ export const convertBlogDocumentToBlog = (blogDoc: BlogDocument): Blog => {
     _id: blogDoc._id?.toString(),
     title: blogDoc.title,
     content: blogDoc.content,
+    description: blogDoc.description, // Add the missing description field
     author: blogDoc.author,
     image: blogDoc.image,
     likes: blogDoc.likes,

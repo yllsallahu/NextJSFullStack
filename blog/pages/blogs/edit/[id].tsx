@@ -38,7 +38,7 @@ export default function EditBlogPage() {
         const blog = await res.json();
         
         // Only allow the author or superusers to edit
-        if (blog.author !== session.user.id && !session.user.isSuperUser) {
+        if (blog.author !== session?.user?.id && !session?.user?.isSuperUser) {
           router.push('/blogs');
           return;
         }

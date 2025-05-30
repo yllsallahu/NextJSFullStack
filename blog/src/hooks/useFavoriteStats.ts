@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useFavorites } from '../lib/contexts/FavoritesContext';
-import { Blog } from '../api/models/Blog';
+import { useFavorites } from '@/lib/contexts/FavoritesContext';
+import { Blog } from '@/api/models/Blog';
 
 interface FavoriteStats {
   count: number;

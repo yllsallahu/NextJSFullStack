@@ -14,7 +14,7 @@ export default function CreateBlog() {
     if (status !== 'loading') {
       if (!session) {
         router.push('/auth/signin');
-      } else if (!session.user.isSuperUser) {
+      } else if (!session.user?.isSuperUser) {
         router.push('/blogs');
       }
     }
