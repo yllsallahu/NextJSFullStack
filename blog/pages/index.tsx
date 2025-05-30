@@ -9,7 +9,7 @@ import { useRouter } from "next/router";
 import Slider from "react-slick";
 import { useEffect, useState } from "react";
 import Head from "next/head";
-import Image from "next/image";
+import { useBlogActions } from "hooks/useBlogActions";
 
 // Need to import slick styles
 import "slick-carousel/slick/slick.css";
@@ -47,6 +47,7 @@ export default function HomePage() {
   const { data: blogs = [], loading, error, mutate } = useFetch<Blog[]>("/api/blogs");
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
+  const { handleLike, handleDelete } = useBlogActions({ onUpdate: mutate });
   
   useEffect(() => {
     // Log authentication status when it changes
@@ -103,24 +104,15 @@ export default function HomePage() {
       }
     ]
   };
-
-  const handleLike = async (blogId: string) => {
-    try {
-      const res = await fetch(`/api/blogs/${blogId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "like" })
-      });
-
-      if (!res.ok) throw new Error("Failed to like blog");
-      mutate();
-    } catch (error) {
-      console.error("Error liking blog:", error);
-    }
-  };
-
   const handleEdit = (blogId: string) => {
     router.push(`/blogs/edit/${blogId}`);
+  };
+
+  const handleBlogDelete = async (blogId: string) => {
+    const result = await handleDelete(blogId);
+    if (result?.success) {
+      mutate(); // Refresh the blogs list
+    }
   };
 
   // Featured blogs for the carousel - use the 5 most recent
@@ -272,23 +264,12 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredBlogs.map((blog: Blog) => (
-                <BlogCard
+              {featuredBlogs.map((blog: Blog) => (                <BlogCard
                   key={blog._id}
                   blog={blog}
                   onLike={handleLike}
-                  // Add onEdit and onDelete if the user can manage the post
                   onEdit={session?.user?.id === blog.author || session?.user?.isSuperUser ? handleEdit : undefined}
-                  onDelete={session?.user?.id === blog.author || session?.user?.isSuperUser ? async (id) => {
-                    if (!window.confirm("A jeni të sigurt që dëshironi ta fshini këtë blog?")) return;
-                    try {
-                      const res = await fetch(`/api/blogs/${id}`, { method: "DELETE" });
-                      if (!res.ok) throw new Error("Failed to delete blog");
-                      mutate(); // Re-fetch blogs after deletion
-                    } catch (err) {
-                      console.error("Error deleting blog:", err);
-                    }
-                  } : undefined}
+                  onDelete={session?.user?.id === blog.author || session?.user?.isSuperUser ? handleBlogDelete : undefined}
                 />
               ))}
             </div>

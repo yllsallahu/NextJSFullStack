@@ -1,5 +1,5 @@
 // pages/api/auth/[...nextauth].ts
-import NextAuth, { NextAuthOptions } from "next-auth";
+import NextAuth, { NextAuthOptions, Session, Profile, Account } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
@@ -7,7 +7,7 @@ import clientPromise from "lib/mongodb";
 import { compare } from "bcryptjs";
 import { getUser, getOrCreateOAuthUser } from "api/services/User";
 import { JWT } from "next-auth/jwt";
-import { Session } from "next-auth";
+import { User } from "next-auth";
 
 // Create the options object for better typing
 const authOptions: NextAuthOptions = {
@@ -84,11 +84,15 @@ const authOptions: NextAuthOptions = {
       }
       return baseUrl;
     },
-  callbacks: {
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile }: { 
+      token: JWT; 
+      user?: User; 
+      account?: Account | null; 
+      profile?: Profile }
+    ) {
       if (user) {
         token.id = user.id;
-        token.isSuperUser = user.isSuperUser || false;
+        token.isSuperUser = (user as any).isSuperUser || false;
       }
       
       // Store the account provider in the token if available
@@ -107,7 +111,10 @@ const authOptions: NextAuthOptions = {
       
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: {
+      session: Session;
+      token: JWT;
+    }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.isSuperUser = token.isSuperUser as boolean;
@@ -121,8 +128,12 @@ const authOptions: NextAuthOptions = {
         }
       }
       return session;
-    },
-    async signIn({ user, account, profile, credentials }) {
+    },    async signIn({ user, account, profile, credentials }: {
+      user: User | { email: string };
+      account: Account | null;
+      profile?: Profile;
+      credentials?: Record<string, any>;
+    }){
       // For OAuth sign-ins (Google, etc.)
       if (account && account.provider === "google" && profile && profile.email) {
         try {
@@ -157,4 +168,6 @@ const authOptions: NextAuthOptions = {
     }
   },
   debug: process.env.NODE_ENV === "development"
-});
+};
+
+export default NextAuth(authOptions);

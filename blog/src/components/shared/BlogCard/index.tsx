@@ -9,7 +9,12 @@ import { useFavorites } from '../../../lib/contexts/FavoritesContext';
 
 interface BlogCardProps {
   blog: Blog;
+  onLike?: (blogId: string) => Promise<any>;
+  onEdit?: (blogId: string) => void;
+  onDelete?: (blogId: string) => Promise<{ success?: boolean; error?: boolean; } | void>;
   onUpdate?: () => void;
+  showAuthor?: boolean;
+  showFavoriteButton?: boolean;
 }
 
 interface CommentFormProps {
@@ -57,7 +62,7 @@ function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
   );
 }
 
-export default function BlogCard({ blog, onUpdate }: BlogCardProps) {
+export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, showAuthor = true }: BlogCardProps) {
   const { data: session } = useSession();
   const userId = session?.user?.id;
   const [hasLiked, setHasLiked] = useState(blog.likes?.includes(userId as string));
@@ -66,10 +71,11 @@ export default function BlogCard({ blog, onUpdate }: BlogCardProps) {
   const [commentsUpdated, setCommentsUpdated] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Use custom hooks
-  const { handleLike, handleDelete, handleDeleteComment } = useBlogActions({
-    onUpdate
-  });
+  // Use custom hooks for default actions if not provided through props
+  const blogActions = useBlogActions({ onUpdate });
+  const handleLikeInternal = onLike || blogActions.handleLike;
+  const handleDeleteInternal = onDelete || blogActions.handleDelete;
+  const handleDeleteComment = blogActions.handleDeleteComment;
   
   useEffect(() => {
     // Update like status when user changes or blog changes
@@ -91,9 +97,8 @@ export default function BlogCard({ blog, onUpdate }: BlogCardProps) {
     setCommentsUpdated(!commentsUpdated);
     if (onUpdate) onUpdate();
   };
-
   const handleLikeClick = async () => {
-    const result = await handleLike(blog._id as string);
+    const result = await handleLikeInternal(blog._id as string);
     if (result && !result.error) {
       setHasLiked(!hasLiked);
       setLikeCount((prev) => hasLiked ? prev - 1 : prev + 1);
@@ -101,7 +106,16 @@ export default function BlogCard({ blog, onUpdate }: BlogCardProps) {
   };
 
   const handleDeleteClick = async (blogId: string) => {
-    await handleDelete(blogId);
+    await handleDeleteInternal(blogId);
+    setShowDropdown(false);
+  };
+
+  const handleEditClick = () => {
+    if (onEdit) {
+      onEdit(blog._id as string);
+    } else {
+      window.location.href = `/blogs/edit/${blog._id}`;
+    }
     setShowDropdown(false);
   };
 
@@ -130,10 +144,9 @@ export default function BlogCard({ blog, onUpdate }: BlogCardProps) {
             {blog.title}
           </h2>
         </Link>
-        
-        <div className="flex justify-between items-center text-black text-sm mb-4">
+          <div className="flex justify-between items-center text-black text-sm mb-4">
           <div>
-            <p>By {blog.author || 'Anonymous'}</p>
+            {showAuthor && <p>By {blog.author || 'Anonymous'}</p>}
             <p>{blog.createdAt && formatDate(blog.createdAt)}</p>
           </div>
           {canManage && (
@@ -149,12 +162,8 @@ export default function BlogCard({ blog, onUpdate }: BlogCardProps) {
               
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-                  <div className="py-1" role="menu">
-                    <button
-                      onClick={() => {
-                        window.location.href = `/blogs/edit/${blog._id}`;
-                        setShowDropdown(false);
-                      }}
+                  <div className="py-1" role="menu">                    <button
+                      onClick={handleEditClick}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
                       Edit Post

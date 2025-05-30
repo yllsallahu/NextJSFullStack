@@ -2,11 +2,12 @@ import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../api/auth/[...nextauth]';
 import Head from 'next/head';
+import { BlogDocument } from '@/api/services/Blog';
 import { useState } from 'react';
 import MainLayout from '../../src/components/MainLayout';
 import { Blog } from '../../src/api/models/Blog';
 import BlogCard from '../../src/components/shared/BlogCard';
-import connectToDatabase from '../../src/lib/mongodb';
+import { connectToDatabase } from '../../src/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { convertBlogDocumentsToBlog } from '../../src/lib/adapters';
 import { FavoritesProvider } from '../../src/lib/contexts/FavoritesContext';
@@ -178,23 +179,21 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     const blogs = await db
       .collection('blogs')
       .find({ _id: { $in: blogObjectIds } })
-      .toArray();
+      .toArray() as BlogDocument[];
     
     // Fetch user's favorite blogs if logged in
-    let favorites = [];
+    let favorites: BlogDocument[] = [];
     if (session?.user?.id) {
       favorites = await db
         .collection('blogs')
         .find({ favorites: session.user.id })
-        .toArray();
+        .toArray() as BlogDocument[];
     }
     
     const initialFavorites = convertBlogDocumentsToBlog(favorites);
     const initialFavoriteIds = initialFavorites.map(blog => blog._id || '');
-    
-    return {
+      return {
       props: {
-        session,
         collection: JSON.parse(JSON.stringify(collection)),
         blogs: JSON.parse(JSON.stringify(convertBlogDocumentsToBlog(blogs))),
         initialFavorites: JSON.parse(JSON.stringify(initialFavorites)),

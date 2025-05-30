@@ -39,16 +39,14 @@ export const useBlogActions = ({ onUpdate }: UseBlogActionsProps = {}) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Handle blog deletion
+  };  // Handle blog deletion
   const handleDelete = async (blogId: string) => {
     if (!session) {
       router.push(`/auth/signin?callbackUrl=${router.asPath}`);
       return;
     }
 
-    if (!window.confirm('Are you sure you want to delete this blog post?')) return;
+    if (!window.confirm('A jeni të sigurt që dëshironi ta fshini këtë blog?')) return;
 
     setIsLoading(true);
     try {
