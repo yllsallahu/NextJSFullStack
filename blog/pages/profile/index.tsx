@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import Header from "components/Header";
 import Footer from "components/Footer";
+import FavoritesStats from "../../src/components/shared/FavoritesStats";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -146,6 +147,12 @@ export default function ProfilePage() {
                     )}
                   </dl>
                 </div>
+                
+                {session && !loading && (
+                  <div className="mt-6">
+                    <FavoritesStats className="mt-6" />
+                  </div>
+                )}
               </div>
             )}
           </div>

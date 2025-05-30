@@ -1,17 +1,20 @@
-import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import { useFavorites } from '../../../lib/contexts/FavoritesContext';
+import { useBlogActions } from '../../../hooks/useBlogActions';
 
 interface FavoriteButtonProps {
   blogId: string;
-  isFavorited: boolean;
-  onToggleFavorite: () => void;
+  onToggleFavorite?: () => void;
 }
 
-const FavoriteButton = ({ blogId, isFavorited, onToggleFavorite }: FavoriteButtonProps) => {
-  const [isLoading, setIsLoading] = useState(false);
+const FavoriteButton = ({ blogId, onToggleFavorite }: FavoriteButtonProps) => {
   const { data: session } = useSession();
   const router = useRouter();
+  const { isFavorite, isLoading } = useFavorites();
+  const { handleToggleFavorite } = useBlogActions({
+    onUpdate: onToggleFavorite
+  });
 
   const handleFavoriteClick = async () => {
     if (isLoading) return;
@@ -22,29 +25,11 @@ const FavoriteButton = ({ blogId, isFavorited, onToggleFavorite }: FavoriteButto
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/blogs/favorite', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ blogId }),
-      });
-
-      if (response.ok) {
-        onToggleFavorite();
-      } else {
-        const data = await response.json();
-        console.error('Failed to toggle favorite:', data.error);
-      }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    await handleToggleFavorite(blogId);
   };
 
+  const isFavorited = isFavorite(blogId);
+  
   return (
     <button
       onClick={handleFavoriteClick}

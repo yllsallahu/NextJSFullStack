@@ -1,17 +1,15 @@
 import { useSession } from 'next-auth/react';
-import { Blog, Comment } from 'api/models/Blog';
-import { useState } from 'react';
+import { Blog, Comment } from '../../../api/models/Blog';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import FavoriteButton from '../FavoriteButton';
+import { useBlogActions } from '../../../hooks/useBlogActions';
+import { useFavorites } from '../../../lib/contexts/FavoritesContext';
 
 interface BlogCardProps {
   blog: Blog;
-  onLike?: (blogId: string) => void;
-  onDelete?: (blogId: string) => void;
-  onEdit?: (blogId: string) => void;
   onUpdate?: () => void;
-  favorites?: string[];
 }
 
 interface CommentFormProps {
@@ -22,6 +20,7 @@ interface CommentFormProps {
 function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { handleAddComment } = useBlogActions({ onUpdate: onCommentAdded });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,20 +28,9 @@ function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/blogs/comment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blogId, content: comment })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add comment');
-      }
-
+      await handleAddComment(blogId, comment);
       setComment('');
       onCommentAdded();
-    } catch (error) {
-      console.error('Error adding comment:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -69,7 +57,7 @@ function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
   );
 }
 
-export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites = [] }: BlogCardProps) {
+export default function BlogCard({ blog, onUpdate }: BlogCardProps) {
   const { data: session } = useSession();
   const userId = session?.user?.id;
   const [hasLiked, setHasLiked] = useState(blog.likes?.includes(userId as string));
@@ -77,9 +65,18 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites =
   const [showComments, setShowComments] = useState(false);
   const [commentsUpdated, setCommentsUpdated] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [isLiking, setIsLiking] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(favorites.includes(blog._id as string));
 
+  // Use custom hooks
+  const { handleLike, handleDelete, handleDeleteComment } = useBlogActions({
+    onUpdate
+  });
+  
+  useEffect(() => {
+    // Update like status when user changes or blog changes
+    setHasLiked(blog.likes?.includes(userId as string) || false);
+    setLikeCount(blog.likes?.length || 0);
+  }, [userId, blog.likes]);
+  
   const canManage = userId === blog.author || session?.user?.isSuperUser;
   
   const formatDate = (date: Date) => {
@@ -92,71 +89,25 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites =
   
   const handleCommentAdded = () => {
     setCommentsUpdated(!commentsUpdated);
+    if (onUpdate) onUpdate();
   };
 
-  const handleLike = async () => {
-    if (!session) {
-      // Redirect to login if not authenticated
-      window.location.href = '/auth/signin';
-      return;
-    }
-
-    if (isLiking) return; // Prevent double clicks
-
-    try {
-      setIsLiking(true);
-      const res = await fetch('/api/blogs/like', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blogId: blog._id })
-      });
-
-      if (!res.ok) throw new Error('Failed to like blog');
-
-      const { likes } = await res.json();
+  const handleLikeClick = async () => {
+    const result = await handleLike(blog._id as string);
+    if (result && !result.error) {
       setHasLiked(!hasLiked);
-      setLikeCount(likes.length);
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      console.error('Error liking blog:', error);
-    } finally {
-      setIsLiking(false);
-    }
-  };
-  const handleDeleteComment = async (commentId: string) => {
-    if (!session?.user?.isSuperUser) return;
-    
-    if (!window.confirm('Are you sure you want to delete this comment?')) return;
-
-    try {
-      const res = await fetch(`/api/blogs/comments/${blog._id}/${commentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete comment');
-      }
-
-      // Update local state to remove the comment
-      const updatedBlog = {
-        ...blog,
-        comments: blog.comments?.filter(comment => comment._id !== commentId) || []
-      };
-
-      // Update the blog state immutably
-      onUpdate?.(); // Trigger parent update if provided
-      handleCommentAdded(); // Refresh comments
-    } catch (error) {
-      console.error('Error deleting comment:', error);
+      setLikeCount((prev) => hasLiked ? prev - 1 : prev + 1);
     }
   };
 
-  const handleFavoriteToggle = () => {
-    setIsFavorited(!isFavorited);
+  const handleDeleteClick = async (blogId: string) => {
+    await handleDelete(blogId);
+    setShowDropdown(false);
+  };
+
+  const handleDeleteCommentClick = async (commentId: string) => {
+    await handleDeleteComment(blog._id as string, commentId);
+    handleCommentAdded();
   };
 
   return (
@@ -199,28 +150,23 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites =
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
                   <div className="py-1" role="menu">
-                    {onEdit && (
-                      <button
-                        onClick={() => {
-                          onEdit(blog._id as string);
-                          setShowDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Edit Post
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        onClick={() => {
-                          onDelete(blog._id as string);
-                          setShowDropdown(false);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        Delete Post
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        window.location.href = `/blogs/edit/${blog._id}`;
+                        setShowDropdown(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Edit Post
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDeleteClick(blog._id as string);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                    >
+                      Delete Post
+                    </button>
                   </div>
                 </div>
               )}
@@ -232,8 +178,7 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites =
         
         <div className="flex items-center space-x-4">
           <button
-            onClick={handleLike}
-            disabled={isLiking}
+            onClick={handleLikeClick}
             className={`flex items-center space-x-1 ${
               hasLiked ? 'text-red-500' : 'text-black'
             } hover:text-red-500 transition-colors`}
@@ -266,8 +211,7 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites =
           {session && (
             <FavoriteButton 
               blogId={blog._id as string} 
-              isFavorited={isFavorited} 
-              onToggleFavorite={handleFavoriteToggle} 
+              onToggleFavorite={onUpdate} 
             />
           )}
         </div>
@@ -285,7 +229,7 @@ export default function BlogCard({ blog, onDelete, onEdit, onUpdate, favorites =
                       <span>{comment.createdAt && formatDate(comment.createdAt)}</span>
                       {session?.user?.isSuperUser && (
                         <button
-                          onClick={() => handleDeleteComment(comment._id as string)}
+                          onClick={() => handleDeleteCommentClick(comment._id as string)}
                           className="text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                           title="Delete comment"
                         >

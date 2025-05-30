@@ -76,6 +76,7 @@ export interface Blog {
   image?: string | null;
   likes?: string[];
   comments?: Comment[];
+  tags?: string[];
   createdAt?: Date;
   updatedAt?: Date;
 }

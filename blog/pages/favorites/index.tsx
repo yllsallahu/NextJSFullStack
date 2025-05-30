@@ -1,61 +1,25 @@
 import { GetServerSideProps } from 'next';
 import { getSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import MainLayout from '../../src/components/MainLayout';
 import BlogCard from '../../src/components/shared/BlogCard';
-import { BlogDocument } from '../../src/api/services/Blog';
 import { Blog } from '../../src/api/models/Blog';
 import { convertBlogDocumentsToBlog } from '../../src/lib/adapters';
+import { useFavorites } from '../../src/lib/contexts/FavoritesContext';
+import { FavoritesProvider } from '../../src/lib/contexts/FavoritesContext';
 
 interface FavoritesPageProps {
   initialFavorites: Blog[];
-  favoriteBlogIds: string[];
+  initialFavoriteIds: string[];
 }
 
-export default function FavoritesPage({ initialFavorites, favoriteBlogIds }: FavoritesPageProps) {
-  const [favorites, setFavorites] = useState<Blog[]>(initialFavorites);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(favoriteBlogIds);
-  const [isLoading, setIsLoading] = useState(false);
+function FavoritesContent() {
+  const { favorites, isLoading, refreshFavorites } = useFavorites();
 
-  const fetchFavorites = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/blogs/favorite');
-      if (!res.ok) throw new Error('Failed to fetch favorites');
-      const data = await res.json();
-      
-      // Convert BlogDocument[] to Blog[]
-      const blogsList = convertBlogDocumentsToBlog(data.favorites);
-      setFavorites(blogsList);
-      setFavoriteIds(blogsList.map(blog => blog._id || ''));
-    } catch (error) {
-      console.error('Error fetching favorites:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUpdate = () => {
-    fetchFavorites();
-  };
-
-  const handleDelete = async (blogId: string) => {
-    if (!window.confirm('Are you sure you want to delete this blog post?')) return;
-
-    try {
-      const res = await fetch(`/api/blogs/${blogId}`, { method: 'DELETE' });
-      
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete blog');
-      }
-
-      // Remove the deleted blog from favorites
-      setFavorites(prev => prev.filter(blog => blog._id !== blogId));
-    } catch (error) {
-      console.error('Error deleting blog:', error);
-    }
-  };
+  // Fetch favorites on component mount
+  useEffect(() => {
+    refreshFavorites();
+  }, []);
 
   return (
     <MainLayout>
@@ -72,12 +36,9 @@ export default function FavoritesPage({ initialFavorites, favoriteBlogIds }: Fav
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {favorites.map(blog => (
               <BlogCard 
-                key={blog._id?.toString()} 
+                key={blog._id} 
                 blog={blog} 
-                onDelete={handleDelete}
-                onEdit={id => window.location.href = `/blogs/edit/${id}`}
-                onUpdate={handleUpdate}
-                favorites={favoriteIds}
+                onUpdate={refreshFavorites}
               />
             ))}
           </div>
@@ -97,6 +58,17 @@ export default function FavoritesPage({ initialFavorites, favoriteBlogIds }: Fav
         )}
       </div>
     </MainLayout>
+  );
+}
+
+export default function FavoritesPage({ initialFavorites, initialFavoriteIds }: FavoritesPageProps) {
+  return (
+    <FavoritesProvider 
+      initialFavorites={initialFavorites}
+      initialFavoriteIds={initialFavoriteIds}
+    >
+      <FavoritesContent />
+    </FavoritesProvider>
   );
 }
 
@@ -127,7 +99,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       return {
         props: {
           initialFavorites: [],
-          favoriteBlogIds: []
+          initialFavoriteIds: []
         }
       };
     }
@@ -137,12 +109,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     
     // Convert BlogDocument[] to Blog[]
     const favorites = convertBlogDocumentsToBlog(blogDocuments);
-    const favoriteBlogIds = favorites.map(blog => blog._id || '');
+    const favoriteIds = favorites.map(blog => blog._id || '');
 
     return {
       props: {
         initialFavorites: favorites,
-        favoriteBlogIds
+        initialFavoriteIds: favoriteIds
       }
     };
   } catch (error) {
@@ -150,7 +122,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return {
       props: {
         initialFavorites: [],
-        favoriteBlogIds: []
+        initialFavoriteIds: []
       }
     };
   }
