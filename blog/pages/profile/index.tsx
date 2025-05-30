@@ -4,11 +4,17 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import Header from "components/Header";
 import Footer from "components/Footer";
+import FavoritesStats from "../../src/components/shared/FavoritesStats";
+
+interface UserData {
+  createdAt: string | number | Date;
+  // Add other properties your userData may have
+}
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -146,6 +152,12 @@ export default function ProfilePage() {
                     )}
                   </dl>
                 </div>
+                
+                {session && !loading && (
+                  <div className="mt-6">
+                    <FavoritesStats className="mt-6" />
+                  </div>
+                )}
               </div>
             )}
           </div>

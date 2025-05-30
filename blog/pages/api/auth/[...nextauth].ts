@@ -7,7 +7,6 @@ import clientPromise from "../../../src/lib/mongodb";
 import { compare } from "bcryptjs";
 import { getUser, getOrCreateOAuthUser } from "../../../src/api/services/User";
 import { linkOAuthAccount, hasCredentialsAccount } from "../../../src/api/services/linkAccountFix";
-import { getBaseUrl } from "../../../src/lib/auth";
 
 // Define the auth options
 export const authOptions: NextAuthOptions = {
