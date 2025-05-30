@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@auth/core": "^0.39.1",
+    "@auth/core": "^0.34.2",
     "@auth/mongodb-adapter": "^3.9.1",
     "@types/formidable": "^3.4.5",
     "bcryptjs": "^3.0.2",
