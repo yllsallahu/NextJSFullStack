@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import Link from 'next/link';
 import { useFavorites } from '../../lib/contexts/FavoritesContext';
 
 // Define your Yup schema
 const collectionSchema = yup.object({
   name: yup.string().required('Collection name is required'),
-  description: yup.string().optional().default(undefined), // Ensures description key is present, value can be string or undefined
-  isPublic: yup.boolean().optional().default(true),
-  selectedBlogs: yup.array().of(yup.string().defined()).optional().default([]),
-  // Ensure other fields match their intended optionality/requirements
-}).required(); // .required() on the object itself is usually good practice
+  description: yup.string().nullable().transform((curr, orig) => orig === '' ? null : curr).default(null),
+  isPublic: yup.boolean().default(true),
+  selectedBlogs: yup.array(yup.string().required()).default([])
+}).required();
 
-// Derive the TypeScript type from the schema
-type CollectionFormData = yup.InferType<typeof collectionSchema>;
+// Derive the TypeScript type from the schema and ensure all fields are required
+interface CollectionFormData {
+  name: string;
+  description: string | null;
+  isPublic: boolean;
+  selectedBlogs: string[];
+}
 
 interface FavoritesCollectionFormProps {
   onSuccess?: () => void;
@@ -51,7 +56,7 @@ const FavoritesCollectionForm: React.FC<FavoritesCollectionFormProps> = ({
     resolver: yupResolver(collectionSchema),
     defaultValues: {
       name: initialCollection?.name || '',
-      description: initialCollection?.description || '', // Or undefined if truly optional
+      description: initialCollection?.description || null,
       isPublic: initialCollection?.isPublic ?? true,
       selectedBlogs: initialCollection?.blogIds || [],
     }
@@ -64,19 +69,17 @@ const FavoritesCollectionForm: React.FC<FavoritesCollectionFormProps> = ({
   useEffect(() => {
     if (initialCollection) {
       setValue('name', initialCollection.name);
-      setValue('description', initialCollection.description || '');
+      setValue('description', initialCollection.description || null);
       setValue('isPublic', initialCollection.isPublic);
       setValue('selectedBlogs', initialCollection.blogIds);
     }
   }, [initialCollection, setValue]);
 
-  const onSubmit: SubmitHandler<CollectionFormData> = async (data) => {
+  const onSubmit = async (data: CollectionFormData) => {
     setIsSubmitting(true);
     setSubmitStatus(null);
-    console.log('Form Data:', data); // Data will be correctly typed
 
     try {
-      // Send the collection data to your API
       const response = await fetch(`/api/user/collections${isEditing && initialCollection?.id ? `/${initialCollection.id}` : ''}`, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
@@ -95,9 +98,8 @@ const FavoritesCollectionForm: React.FC<FavoritesCollectionFormProps> = ({
         throw new Error(error.error || 'Failed to save collection');
       }
 
-      const result = await response.json();
+      await response.json();
       
-      // Handle success
       setSubmitStatus({
         success: true,
         message: isEditing 
@@ -105,12 +107,10 @@ const FavoritesCollectionForm: React.FC<FavoritesCollectionFormProps> = ({
           : 'Your collection has been created successfully!',
       });
       
-      // Reset the form if not editing
       if (!isEditing) {
         reset();
       }
       
-      // Call the success callback if provided
       if (onSuccess) {
         onSuccess();
       }
@@ -219,12 +219,11 @@ const FavoritesCollectionForm: React.FC<FavoritesCollectionFormProps> = ({
             Select Blogs for Collection*
           </label>
           
-          {favorites.length === 0 ? (
-            <div className="border border-gray-200 rounded-md p-4 text-gray-500 text-center">
-              You don't have any favorite blogs yet. 
-              <a href="/blogs" className="text-blue-500 hover:underline ml-1">
+          {favorites.length === 0 ? (            <div className="border border-gray-200 rounded-md p-4 text-gray-500 text-center">
+              You don&apos;t have any favorite blogs yet. 
+              <Link href="/blogs" className="text-blue-500 hover:underline ml-1">
                 Browse blogs to add some favorites!
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 max-h-80 overflow-y-auto p-2">

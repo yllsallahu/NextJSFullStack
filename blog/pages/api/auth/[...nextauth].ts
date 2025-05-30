@@ -92,8 +92,7 @@ export const authOptions: NextAuthOptions = {
       // Default to home page for any other cases
       console.log(`Redirecting to base URL: ${baseUrl}`);
       return baseUrl;
-    },
-    async jwt({ token, user, account, profile }) {
+    },    async jwt({ token, user, account, profile }) {
       if (user) {
         token.id = user.id;
         token.isSuperUser = user.isSuperUser || false;
@@ -127,7 +126,7 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async signIn({ user, account, profile, credentials, email }) {
+    async signIn({ account, profile }) {
       // Enhanced handling for Google OAuth sign-in to fix account linking issues
       if (account?.provider === "google" && profile?.email) {
         try {

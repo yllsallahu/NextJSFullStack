@@ -55,7 +55,9 @@ export default function SignIn({ csrfToken }: { csrfToken: string }) {
   );
 }
 
-SignIn.getInitialProps = async (context: any) => ({
+import type { GetServerSidePropsContext } from 'next';
+
+SignIn.getInitialProps = async (context: GetServerSidePropsContext) => ({
   csrfToken: await getCsrfToken(context),
 });
 

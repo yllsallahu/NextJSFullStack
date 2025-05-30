@@ -1,13 +1,14 @@
 // pages/api/auth/[...nextauth].ts
-import NextAuth, { NextAuthOptions, Session, Profile, Account } from "next-auth";
+import NextAuth, { NextAuthOptions, Session, Account, Profile, User } from "next-auth";
+import { AdapterUser } from "next-auth/adapters";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import clientPromise from "lib/mongodb";
 import { compare } from "bcryptjs";
 import { getUser, getOrCreateOAuthUser } from "api/services/User";
-import { JWT } from "next-auth/jwt";
-import { User } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+import { CustomUser, DbUser } from "../../../types/user";
 
 // Create the options object for better typing
 const authOptions: NextAuthOptions = {
@@ -83,16 +84,10 @@ const authOptions: NextAuthOptions = {
         return url;
       }
       return baseUrl;
-    },
-    async jwt({ token, user, account, profile }: { 
-      token: JWT; 
-      user?: User; 
-      account?: Account | null; 
-      profile?: Profile }
-    ) {
+    },    async jwt({ token, user, account, profile }) {
       if (user) {
         token.id = user.id;
-        token.isSuperUser = (user as any).isSuperUser || false;
+        token.isSuperUser = (user as User).isSuperUser || false;
       }
       
       // Store the account provider in the token if available
@@ -102,7 +97,6 @@ const authOptions: NextAuthOptions = {
       
       // For Google sign-in, store the image URL
       if (profile && account?.provider === 'google') {
-        // Use type assertion since profile structure varies by provider
         const googleProfile = profile as { picture?: string };
         if (googleProfile.picture) {
           token.picture = googleProfile.picture;
@@ -111,10 +105,7 @@ const authOptions: NextAuthOptions = {
       
       return token;
     },
-    async session({ session, token }: {
-      session: Session;
-      token: JWT;
-    }) {
+    async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.isSuperUser = token.isSuperUser as boolean;
@@ -128,12 +119,7 @@ const authOptions: NextAuthOptions = {
         }
       }
       return session;
-    },    async signIn({ user, account, profile, credentials }: {
-      user: User | { email: string };
-      account: Account | null;
-      profile?: Profile;
-      credentials?: Record<string, any>;
-    }){
+    },    async signIn({ user, account, profile }) {
       // For OAuth sign-ins (Google, etc.)
       if (account && account.provider === "google" && profile && profile.email) {
         try {
