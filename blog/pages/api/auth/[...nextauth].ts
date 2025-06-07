@@ -17,14 +17,12 @@ function createMongoDBAdapter(): Adapter | undefined {
       return undefined;
     }
     
-    // Improved build-time detection for Vercel and other environments
+    // Use the same build-time detection logic as mongodb.ts
     const isBuildTime = typeof window === 'undefined' && (
-      // During Vercel build process
-      process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
+      // During Vercel build process (VERCEL_URL is not available during build, only at runtime)
+      (process.env.VERCEL === '1' && !process.env.VERCEL_URL) ||
       // During CI builds
       process.env.CI === 'true' ||
-      // During npm run build without database
-      (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
       // Explicit build flag
       process.env.NEXT_PHASE === 'phase-production-build'
     );

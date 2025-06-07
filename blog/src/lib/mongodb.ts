@@ -18,12 +18,10 @@ function getClientPromise(): Promise<MongoClient> {
 
   // Improved build-time detection for Vercel and other environments
   const isBuildTime = typeof window === 'undefined' && (
-    // During Vercel build process
-    process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
+    // During Vercel build process (VERCEL_URL is not available during build, only at runtime)
+    (process.env.VERCEL === '1' && !process.env.VERCEL_URL) ||
     // During CI builds
     process.env.CI === 'true' ||
-    // During npm run build without database
-    (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
     // Explicit build flag
     process.env.NEXT_PHASE === 'phase-production-build'
   );
@@ -61,26 +59,6 @@ function getClientPromise(): Promise<MongoClient> {
 
 // Helper function to connect to database and return both client and db
 export async function connectToDatabase() {
-  // Improved build-time detection for Vercel and other environments
-  const isBuildTime = typeof window === 'undefined' && (
-    // During Vercel build process
-    process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
-    // During CI builds
-    process.env.CI === 'true' ||
-    // During npm run build without database
-    (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
-    // Explicit build flag
-    process.env.NEXT_PHASE === 'phase-production-build'
-  );
-
-  if (isBuildTime) {
-    throw new Error('Database connection not available during build');
-  }
-
-  if (!uri) {
-    throw new Error('MONGODB_URI environment variable is required');
-  }
-
   try {
     const client = await getClientPromise();
     const db = client.db();

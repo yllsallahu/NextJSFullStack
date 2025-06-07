@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from "next-auth/jwt";
-import { getUserById } from 'api/services/User';
+import { getUserById } from '../api/services/User';
 
 export async function isSuperUser(
   req: NextApiRequest,

@@ -125,10 +125,10 @@ export default function CollectionPage({
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  // Improved build-time detection for Vercel and other environments
+  // Unified build-time detection logic
   const isBuildTime = typeof window === 'undefined' && (
-    // During Vercel build process
-    process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
+    // During Vercel build process (using VERCEL_URL availability as indicator)
+    process.env.VERCEL === '1' && !process.env.VERCEL_URL ||
     // During CI builds
     process.env.CI === 'true' ||
     // During npm run build without database

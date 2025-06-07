@@ -10,16 +10,22 @@
 
 ## 🔧 Required Environment Variables
 
-You need to add the following environment variables in your Vercel project dashboard:
+**CRITICAL**: You need to add the following environment variables in your Vercel project dashboard:
 
 ### Required Variables
+- `NEXTAUTH_SECRET` - **MOST IMPORTANT** - A secure secret key for NextAuth.js
+  ```bash
+  # Generate a secure secret:
+  openssl rand -base64 32
+  ```
 - `MONGODB_URI` - Your MongoDB connection string
-- `NEXTAUTH_SECRET` - A secret key for NextAuth.js
 - `NEXTAUTH_URL` - Your production URL (e.g., https://your-app.vercel.app)
 
 ### Optional OAuth Variables (if using Google Auth)
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+
+**⚠️ WARNING**: Missing NEXTAUTH_SECRET will cause authentication failures in production!
 
 ## 📋 Steps to Complete Deployment
 
