@@ -8,18 +8,36 @@ const options = {
   serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
 };
 
-let clientPromise: Promise<MongoClient>;
+let clientPromise: Promise<MongoClient> | null = null;
 
-// Initialize clientPromise immediately to support both named and default exports
-if (!uri) {
-  // During Vercel build or CI, throw a more specific error
-  if (process.env.VERCEL_ENV || process.env.CI) {
-    // Create a promise that will reject with a specific error for build time
-    clientPromise = Promise.reject(new Error('Database connection not available during build'));
-  } else {
-    clientPromise = Promise.reject(new Error('MONGODB_URI environment variable is required'));
+// Function to initialize client promise lazily
+function getClientPromise(): Promise<MongoClient> {
+  if (clientPromise) {
+    return clientPromise;
   }
-} else {
+
+  // Improved build-time detection for Vercel and other environments
+  const isBuildTime = typeof window === 'undefined' && (
+    // During Vercel build process
+    process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
+    // During CI builds
+    process.env.CI === 'true' ||
+    // During npm run build without database
+    (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
+    // Explicit build flag
+    process.env.NEXT_PHASE === 'phase-production-build'
+  );
+
+  if (isBuildTime) {
+    // Return a rejected promise that can be caught
+    clientPromise = Promise.reject(new Error('Database connection not available during build'));
+    return clientPromise;
+  }
+
+  if (!uri) {
+    throw new Error('MONGODB_URI environment variable is required');
+  }
+
   if (process.env.NODE_ENV === 'development') {
     // In development mode, use a global variable so that the value
     // is preserved across module reloads caused by HMR (Hot Module Replacement).
@@ -37,21 +55,34 @@ if (!uri) {
     const client = new MongoClient(uri, options);
     clientPromise = client.connect();
   }
+
+  return clientPromise;
 }
 
 // Helper function to connect to database and return both client and db
 export async function connectToDatabase() {
-  // If no URI is provided, check if we're in build or production environment
+  // Improved build-time detection for Vercel and other environments
+  const isBuildTime = typeof window === 'undefined' && (
+    // During Vercel build process
+    process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
+    // During CI builds
+    process.env.CI === 'true' ||
+    // During npm run build without database
+    (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
+    // Explicit build flag
+    process.env.NEXT_PHASE === 'phase-production-build'
+  );
+
+  if (isBuildTime) {
+    throw new Error('Database connection not available during build');
+  }
+
   if (!uri) {
-    // During Vercel build, throw a more specific error that can be caught
-    if (process.env.VERCEL_ENV || process.env.CI || process.env.NODE_ENV === 'production') {
-      throw new Error('Database connection not available during build');
-    }
     throw new Error('MONGODB_URI environment variable is required');
   }
 
   try {
-    const client = await clientPromise;
+    const client = await getClientPromise();
     const db = client.db();
     return { client, db };
   } catch (error) {
@@ -64,4 +95,4 @@ export async function connectToDatabase() {
 }
 
 // Export clientPromise as default to support direct imports
-export default clientPromise;
+export default getClientPromise;

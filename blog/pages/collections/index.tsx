@@ -7,7 +7,7 @@ import MainLayout from '../../src/components/MainLayout';
 import FavoritesCollectionForm from '../../src/components/forms/FavoritesCollectionForm';
 import Link from 'next/link';
 import { Blog } from '../../src/api/models/Blog';
-import clientPromise from '../../src/lib/mongodb';
+import { connectToDatabase } from '../../src/lib/mongodb';
 import { convertBlogDocumentsToBlog } from '../../src/lib/adapters';
 import { FavoritesProvider } from '../../src/lib/contexts/FavoritesContext';
 import { BlogDocument } from '../../src/api/services/Blog'; // Import BlogDocument
@@ -209,6 +209,28 @@ export default function CollectionsPage({
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
+  // Improved build-time detection for Vercel and other environments
+  const isBuildTime = typeof window === 'undefined' && (
+    // During Vercel build process
+    process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
+    // During CI builds
+    process.env.CI === 'true' ||
+    // During npm run build without database
+    (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
+    // Explicit build flag
+    process.env.NEXT_PHASE === 'phase-production-build'
+  );
+
+  if (isBuildTime) {
+    return {
+      props: {
+        collections: [],
+        initialFavorites: [],
+        initialFavoriteIds: []
+      },
+    };
+  }
+
   const session = await getServerSession(context.req, context.res, authOptions);
   
   if (!session || !session.user || !session.user.id) {
@@ -229,11 +251,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   };
 
   try {
-    // Connect to the database using clientPromise
-    let client, db;
+    // Connect to the database using connectToDatabase helper
+    let db;
     try {
-      client = await clientPromise;
-      db = client.db();
+      const connection = await connectToDatabase();
+      db = connection.db;
     } catch (dbError) {
       // If database connection fails during build, return empty data
       console.log('Database connection failed, likely during build:', dbError);

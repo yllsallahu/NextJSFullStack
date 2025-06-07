@@ -3,7 +3,6 @@ import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
-import clientPromise from "../../../src/lib/mongodb";
 import { compare } from "bcryptjs";
 import { getUser, getOrCreateOAuthUser } from "../../../src/api/services/User";
 import { linkOAuthAccount, hasCredentialsAccount } from "../../../src/api/services/linkAccountFix";
@@ -12,11 +11,31 @@ import { Adapter } from "next-auth/adapters";  // Import Adapter type
 // Helper function to safely create the MongoDB adapter
 function createMongoDBAdapter(): Adapter | undefined {
   try {
-    // Only create adapter if we have a MongoDB URI
+    // Only create adapter if we have a MongoDB URI and we're not in build mode
     if (!process.env.MONGODB_URI) {
       console.warn('MongoDB adapter disabled: MONGODB_URI not found');
       return undefined;
     }
+    
+    // Improved build-time detection for Vercel and other environments
+    const isBuildTime = typeof window === 'undefined' && (
+      // During Vercel build process
+      process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development' ||
+      // During CI builds
+      process.env.CI === 'true' ||
+      // During npm run build without database
+      (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
+      // Explicit build flag
+      process.env.NEXT_PHASE === 'phase-production-build'
+    );
+
+    if (isBuildTime) {
+      console.warn('MongoDB adapter disabled during build time');
+      return undefined;
+    }
+    
+    // Dynamically import clientPromise only when needed
+    const clientPromise = require("../../../src/lib/mongodb").default;
     return MongoDBAdapter(clientPromise) as Adapter;
   } catch (error) {
     console.warn('MongoDB adapter creation failed:', error);
