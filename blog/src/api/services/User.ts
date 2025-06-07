@@ -1,6 +1,6 @@
 // src/api/services/User.ts
-import clientPromise from "lib/mongodb";
-import { User } from "api/models/User";
+import clientPromise from "../../lib/mongodb";
+import { User } from "../models/User";
 import { ObjectId } from "mongodb";
 
 export async function createUser(data: Omit<User, '_id'>) {

@@ -1,6 +1,6 @@
 // pages/api/auth/register.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getUser, createUser } from "api/services/User";
+import { getUser, createUser } from "../../../src/api/services/User";
 import bcrypt from "bcryptjs";
 
 export default async function handler(

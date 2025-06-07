@@ -1,7 +1,7 @@
 // This file contains a direct fix for the OAuth account linking issue
 // Save this as linkAccountFix.ts in the same directory as User.ts
 
-import clientPromise from "../../../src/lib/mongodb";
+import clientPromise from "../../lib/mongodb";
 import { ObjectId } from "mongodb";
 
 /**
