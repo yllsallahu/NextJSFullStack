@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm run install-deps",
-  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "buildCommand": "cd blog && npm ci && npm run build",
   "outputDirectory": "blog/.next"
 }
