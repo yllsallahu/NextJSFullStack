@@ -27,6 +27,12 @@ export async function createUser(data: Omit<User, '_id'>) {
     return result;
   } catch (error) {
     console.error('Error in createUser:', error);
+    
+    // If this is a database connection error during build, provide a more helpful message
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      throw new Error('Database service unavailable - this operation requires a database connection');
+    }
+    
     throw error;
   }
 }
@@ -40,6 +46,13 @@ export async function getUser(email: string) {
     return user;
   } catch (error) {
     console.error('Error in getUser:', error);
+    
+    // If this is a database connection error during build, return null instead of throwing
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      console.warn('Database unavailable, returning null for user lookup');
+      return null;
+    }
+    
     throw error;
   }
 }
@@ -56,6 +69,13 @@ export async function getUserById(id: string) {
     return user;
   } catch (error) {
     console.error('Error in getUserById:', error);
+    
+    // If this is a database connection error during build, return null
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      console.warn('Database unavailable, returning null for user lookup by ID');
+      return null;
+    }
+    
     throw error;
   }
 }
@@ -68,6 +88,13 @@ export async function isFirstUser(): Promise<boolean> {
     return count === 0;
   } catch (error) {
     console.error('Error checking if first user:', error);
+    
+    // If database is unavailable, assume it's not the first user for safety
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      console.warn('Database unavailable, assuming not first user');
+      return false;
+    }
+    
     return false;
   }
 }
@@ -205,6 +232,13 @@ export async function getOrCreateOAuthUser(email: string, name: string, provider
     return user;
   } catch (error) {
     console.error('Error in getOrCreateOAuthUser:', error);
+    
+    // If this is a database connection error during build, return null
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      console.warn('Database unavailable, cannot create/get OAuth user');
+      return null;
+    }
+    
     throw error;
   }
 }

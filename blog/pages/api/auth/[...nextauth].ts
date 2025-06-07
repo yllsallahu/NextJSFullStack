@@ -9,9 +9,25 @@ import { getUser, getOrCreateOAuthUser } from "../../../src/api/services/User";
 import { linkOAuthAccount, hasCredentialsAccount } from "../../../src/api/services/linkAccountFix";
 import { Adapter } from "next-auth/adapters";  // Import Adapter type
 
+// Helper function to safely create the MongoDB adapter
+function createMongoDBAdapter(): Adapter | undefined {
+  try {
+    // Only create adapter if we have a MongoDB URI
+    if (!process.env.MONGODB_URI) {
+      console.warn('MongoDB adapter disabled: MONGODB_URI not found');
+      return undefined;
+    }
+    return MongoDBAdapter(clientPromise) as Adapter;
+  } catch (error) {
+    console.warn('MongoDB adapter creation failed:', error);
+    return undefined;
+  }
+}
+
 // Define the auth options
 export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(clientPromise) as Adapter,  // Add type assertion here
+  secret: process.env.NEXTAUTH_SECRET,
+  adapter: createMongoDBAdapter(),
   useSecureCookies: process.env.NODE_ENV === "production",
   cookies: {
     sessionToken: {
@@ -48,20 +64,33 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email dhe fjalëkalimi janë të detyrueshëm");
         }
-        const user = await getUser(credentials.email);
-        if (!user) {
-          throw new Error("Email-i nuk ekziston");
+        
+        try {
+          const user = await getUser(credentials.email);
+          if (!user) {
+            throw new Error("Email-i nuk ekziston");
+          }
+          const isValid = await compare(credentials.password, user.password);
+          if (!isValid) {
+            throw new Error("Fjalëkalimi nuk është i saktë");
+          }
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            isSuperUser: user.isSuperUser || false
+          };
+        } catch (error) {
+          console.error('Authorization error:', error);
+          
+          // If this is a database connection error, provide a more helpful message
+          if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+            throw new Error("Shërbimi i autentifikimit nuk është i disponueshëm");
+          }
+          
+          // Re-throw the original error
+          throw error;
         }
-        const isValid = await compare(credentials.password, user.password);
-        if (!isValid) {
-          throw new Error("Fjalëkalimi nuk është i saktë");
-        }
-        return {
-          id: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          isSuperUser: user.isSuperUser || false
-        };
       }
     })
   ],
@@ -185,6 +214,14 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error('❌ OAuth sign-in error:', error);
+          
+          // If this is a database connection error, we should still allow the sign-in
+          // to proceed so NextAuth can handle it with its own adapter
+          if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+            console.warn('Database unavailable during OAuth sign-in, allowing NextAuth adapter to handle');
+            return true;
+          }
+          
           // We should still allow the sign-in since errors here are likely our custom code
           return true;
         }

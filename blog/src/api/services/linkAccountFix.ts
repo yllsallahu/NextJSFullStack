@@ -84,6 +84,13 @@ export async function linkOAuthAccount(email: string, providerId: string, provid
     return true;
   } catch (error) {
     console.error('❌ Error linking OAuth account:', error);
+    
+    // If this is a database connection error during build, return false
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      console.warn('Database unavailable, cannot link OAuth account');
+      return false;
+    }
+    
     return false;
   }
 }
@@ -102,6 +109,13 @@ export async function hasCredentialsAccount(email: string): Promise<boolean> {
     return !!user;
   } catch (error) {
     console.error('Error checking credentials account:', error);
+    
+    // If this is a database connection error during build, return false
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      console.warn('Database unavailable, assuming no credentials account');
+      return false;
+    }
+    
     return false;
   }
 }

@@ -53,6 +53,24 @@ export default async function handler(
 
   } catch (error) {
     console.error("Registration error:", error);
+    
+    // If this is a database connection error, provide a more helpful message
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      return res.status(503).json({ 
+        error: "Shërbimi i regjistrimit nuk është i disponueshëm. Ju lutem provoni përsëri më vonë." 
+      });
+    }
+    
+    // If it's a user validation error, return it as-is
+    if (error instanceof Error && (
+      error.message.includes('Email është i regjistruar tashmë') ||
+      error.message.includes('Database service unavailable')
+    )) {
+      return res.status(409).json({ 
+        error: error.message 
+      });
+    }
+    
     return res.status(500).json({ 
       error: "Gabim gjatë regjistrimit të përdoruesit" 
     });
