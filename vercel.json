@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev", 
-  "installCommand": "npm run install-deps",
+  "buildCommand": "npm run build --workspace=blog",
+  "devCommand": "npm run dev --workspace=blog", 
+  "installCommand": "npm install",
   "outputDirectory": "blog/.next",
   "framework": "nextjs",
   "functions": {
