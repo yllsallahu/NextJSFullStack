@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install",
-  "buildCommand": "cd blog && npm install && npm run build",
+  "buildCommand": "npm run build --workspace=blog",
+  "installCommand": "npm install --workspaces",
   "outputDirectory": "blog/.next"
 }
