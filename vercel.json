@@ -1,12 +1,5 @@
 {
-  "buildCommand": "npm run build --workspace=blog",
-  "devCommand": "npm run dev --workspace=blog", 
-  "installCommand": "npm install",
-  "outputDirectory": "blog/.next",
-  "framework": "nextjs",
-  "functions": {
-    "blog/pages/api/**/*.ts": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  "installCommand": "npm run install-deps",
+  "buildCommand": "npm run build",
+  "outputDirectory": "blog/.next"
 }
