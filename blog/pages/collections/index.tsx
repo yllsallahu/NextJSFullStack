@@ -230,8 +230,22 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
     // Connect to the database using clientPromise
-    const client = await clientPromise;
-    const db = client.db();
+    let client, db;
+    try {
+      client = await clientPromise;
+      db = client.db();
+    } catch (dbError) {
+      // If database connection fails during build, return empty data
+      console.log('Database connection failed, likely during build:', dbError);
+      return {
+        props: {
+          session: serializableSession,
+          collections: [],
+          initialFavorites: [],
+          initialFavoriteIds: []
+        },
+      };
+    }
     
     // Fetch user collections
     const collections = await db

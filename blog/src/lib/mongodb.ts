@@ -44,15 +44,23 @@ export async function connectToDatabase() {
   // If no URI is provided, check if we're in build or production environment
   if (!uri) {
     // During Vercel build, throw a more specific error that can be caught
-    if (process.env.VERCEL_ENV || process.env.CI) {
+    if (process.env.VERCEL_ENV || process.env.CI || process.env.NODE_ENV === 'production') {
       throw new Error('Database connection not available during build');
     }
     throw new Error('MONGODB_URI environment variable is required');
   }
 
-  const client = await clientPromise;
-  const db = client.db();
-  return { client, db };
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+    return { client, db };
+  } catch (error) {
+    // If the clientPromise was rejected due to build-time issues, re-throw with clearer message
+    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
+      throw error;
+    }
+    throw new Error('Failed to connect to database');
+  }
 }
 
 // Export clientPromise as default to support direct imports

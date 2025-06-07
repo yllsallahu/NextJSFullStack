@@ -144,7 +144,22 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       // If database connection fails during build, return a default response
       console.log('Database connection failed, likely during build:', dbError);
       return {
-        notFound: true,
+        props: {
+          collection: {
+            _id: id,
+            name: 'Collection Unavailable',
+            description: 'Database connection unavailable',
+            isPublic: true,
+            blogIds: [],
+            userId: '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          blogs: [],
+          initialFavorites: [],
+          initialFavoriteIds: [],
+          isOwner: false
+        },
       };
     }
     
