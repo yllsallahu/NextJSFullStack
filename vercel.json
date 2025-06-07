@@ -1,5 +1,12 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
-  ]
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev", 
+  "installCommand": "npm run install-deps",
+  "outputDirectory": "blog/.next",
+  "framework": "nextjs",
+  "functions": {
+    "blog/pages/api/**/*.ts": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }

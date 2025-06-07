@@ -1,4 +1,19 @@
 {
+  "name": "nextjs-fullstack-blog",
+  "version": "1.0.0",
+  "description": "A full-stack blog application built with Next.js",
+  "private": true,
+  "workspaces": [
+    "blog"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=blog",
+    "build": "npm run build --workspace=blog",
+    "start": "npm run start --workspace=blog",
+    "lint": "npm run lint --workspace=blog",
+    "clean": "npm run clean --workspace=blog",
+    "install-deps": "npm install && npm install --workspace=blog"
+  },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.9.1",
     "bcryptjs": "^3.0.2",
@@ -7,5 +22,8 @@
   },
   "devDependencies": {
     "@types/webpack": "^5.28.5"
-  }
+  },
+  "keywords": ["nextjs", "blog", "mongodb", "nextauth", "typescript"],
+  "author": "",
+  "license": "MIT"
 }

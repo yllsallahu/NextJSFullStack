@@ -1,13 +1,27 @@
 import Image from 'next/image'
-import myImage from '../public/myImage.jpg'
 
-const ImageComponent = () => (
-    <div>
+interface ImageComponentProps {
+    src: string;
+    alt: string;
+    width?: number;
+    height?: number;
+    className?: string;
+}
+
+const ImageComponent = ({ 
+    src, 
+    alt, 
+    width = 500, 
+    height = 300, 
+    className 
+}: ImageComponentProps) => (
+    <div className={className}>
         <Image
-            src={myImage}
-            alt="Përshkrimi i imazhit"
-            width={500}
-            height={300}
+            src={src}
+            alt={alt}
+            width={width}
+            height={height}
+            className="object-cover"
         />
     </div>
 )

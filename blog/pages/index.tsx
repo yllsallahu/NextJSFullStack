@@ -50,9 +50,6 @@ export default function HomePage() {
   const { handleLike, handleDelete } = useBlogActions({ onUpdate: mutate });
   
   useEffect(() => {
-    // Log authentication status when it changes
-    console.log('Home page session status:', status, session?.user?.email);
-    
     // Add additional class to body when authenticated via Google
     if (session?.user?.provider === 'google') {
       document.body.classList.add('google-authenticated');

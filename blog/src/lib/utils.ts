@@ -1,4 +1,4 @@
-import { User } from "api/models/User";
+import { User } from "../api/models/User";
 
 export function isSuperUser(user: User | null | undefined): boolean {
   return Boolean(user?.isSuperUser);
