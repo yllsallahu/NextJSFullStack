@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb";
 
 export async function createUser(data: Omit<User, '_id'>) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     // Check if this is the first user (will be made super user)
@@ -39,7 +39,7 @@ export async function createUser(data: Omit<User, '_id'>) {
 
 export async function getUser(email: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const user = await db.collection("users").findOne({ email });
@@ -59,7 +59,7 @@ export async function getUser(email: string) {
 
 export async function getUserById(id: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const user = await db.collection("users").findOne({ 
@@ -82,7 +82,7 @@ export async function getUserById(id: string) {
 
 export async function isFirstUser(): Promise<boolean> {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     const count = await db.collection("users").countDocuments();
     return count === 0;
@@ -101,7 +101,7 @@ export async function isFirstUser(): Promise<boolean> {
 
 export async function makeSuperUser(userId: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const result = await db.collection("users").updateOne(
@@ -123,7 +123,7 @@ export async function makeSuperUser(userId: string) {
 // Function to handle user from OAuth providers like Google
 export async function getOrCreateOAuthUser(email: string, name: string, provider: string, image?: string, forceLink: boolean = false) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     console.log(`OAuth login attempt: ${email} (${provider})`);

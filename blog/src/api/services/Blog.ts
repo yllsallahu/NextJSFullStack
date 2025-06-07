@@ -23,7 +23,7 @@ export interface BlogDocument {
 
 export async function createBlog(blog: Pick<BlogDocument, 'title' | 'content' | 'author' | 'image'>) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const newBlog: BlogDocument = {
@@ -45,7 +45,7 @@ export async function createBlog(blog: Pick<BlogDocument, 'title' | 'content' | 
 
 export async function getBlogs() {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const blogs = await db.collection<BlogDocument>("blogs")
@@ -62,7 +62,7 @@ export async function getBlogs() {
 
 export async function getBlogById(id: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const blog = await db.collection<BlogDocument>("blogs")
@@ -81,7 +81,7 @@ export async function getBlogById(id: string) {
 
 export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument, 'title' | 'content' | 'image'>> & { updatedAt: Date }) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const result = await db.collection<BlogDocument>("blogs").updateOne(
@@ -104,7 +104,7 @@ export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument,
 
 export async function deleteBlog(id: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const result = await db.collection<BlogDocument>("blogs").deleteOne(
@@ -124,7 +124,7 @@ export async function deleteBlog(id: string) {
 
 export async function likeBlog(blogId: string, userId: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const blog = await getBlogById(blogId);
@@ -158,7 +158,7 @@ export async function likeBlog(blogId: string, userId: string) {
 
 export async function addComment(blogId: string, commentData: Pick<Comment, 'content' | 'author'>) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const comment: Comment = {
@@ -188,7 +188,7 @@ export async function addComment(blogId: string, commentData: Pick<Comment, 'con
 
 export async function deleteComment(blogId: string, commentId: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     const result = await db.collection<BlogDocument>("blogs").updateOne(
@@ -216,7 +216,7 @@ export async function deleteComment(blogId: string, commentId: string) {
 
 export async function favoriteBlogs(userId: string, blogId: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     // Check if the user has already favorited this blog
@@ -264,7 +264,7 @@ export async function favoriteBlogs(userId: string, blogId: string) {
 
 export async function getFavoriteBlogs(userId: string) {
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db("myapp");
     
     // Get user's favorite blog IDs

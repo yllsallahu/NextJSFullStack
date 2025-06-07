@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from 'next-auth/jwt';
-import clientPromise from 'lib/mongodb';
-import { getUserById } from 'api/services/User';
+import clientPromise from '../../../src/lib/mongodb';
+import { getUserById } from '../../../src/api/services/User';
 
 export default async function handler(
   req: NextApiRequest,
@@ -24,7 +24,7 @@ export default async function handler(
     }
 
     // Get all users
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db('myapp');
     
     const users = await db.collection('users')

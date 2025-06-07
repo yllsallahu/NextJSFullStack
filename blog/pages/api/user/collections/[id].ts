@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userId = session.user.id;
   
   try {
-    const client = await clientPromise;
+    const client = await clientPromise();
     const db = client.db();
     
     // Check if the collection belongs to the user

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from 'next-auth/jwt';
-import clientPromise from 'lib/mongodb';
-import { getUserById } from 'api/services/User';
+import clientPromise from '../../../../src/lib/mongodb';
+import { getUserById } from '../../../../src/api/services/User';
 import { ObjectId } from 'mongodb';
 
 export default async function handler(
@@ -25,7 +25,7 @@ export default async function handler(
     return res.status(400).json({ error: 'Invalid user ID' });
   }
 
-  const client = await clientPromise;
+  const client = await clientPromise();
   const db = client.db('myapp');
 
   try {
