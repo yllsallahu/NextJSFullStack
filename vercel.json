@@ -1,5 +1,6 @@
 {
-  "buildCommand": "npm run build --workspace=blog",
-  "installCommand": "npm install --workspaces",
+  "version": 2,
+  "buildCommand": "npm install --prefix blog && npm run build --prefix blog",
+  "installCommand": "npm install",
   "outputDirectory": "blog/.next"
 }
