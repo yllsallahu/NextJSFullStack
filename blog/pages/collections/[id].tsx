@@ -136,7 +136,17 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   
   try {
     // Connect to the database
-    const { db } = await connectToDatabase();
+    let db;
+    try {
+      const connection = await connectToDatabase();
+      db = connection.db;
+    } catch (dbError) {
+      // If database connection fails during build, return a default response
+      console.log('Database connection failed, likely during build:', dbError);
+      return {
+        notFound: true,
+      };
+    }
     
     let collectionId: ObjectId;
     try {

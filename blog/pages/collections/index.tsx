@@ -260,6 +260,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     };
   } catch (error) {
     console.error('Error fetching collections:', error);
+    // If there's a database connection error during build, return empty data
     return {
       props: {
         session: serializableSession,
