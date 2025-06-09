@@ -63,7 +63,32 @@ export const FavoritesProvider = ({
       const res = await fetch('/api/blogs/favorite');
       
       if (!res.ok) {
-        throw new Error('Failed to fetch favorites');
+        // Provide more specific error messages based on status code
+        let errorMessage = 'Failed to fetch favorites';
+        
+        switch (res.status) {
+          case 401:
+            errorMessage = 'You are not authorized to access favorites. Please log in again.';
+            break;
+          case 403:
+            errorMessage = 'Access forbidden. You do not have permission to view favorites.';
+            break;
+          case 404:
+            errorMessage = 'Favorites service not found.';
+            break;
+          case 500:
+            errorMessage = 'Server error occurred while fetching favorites.';
+            break;
+          default:
+            try {
+              const errorData = await res.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch {
+              // If we can't parse error response, use default message
+            }
+        }
+        
+        throw new Error(errorMessage);
       }
       
       const data = await res.json();
@@ -73,6 +98,15 @@ export const FavoritesProvider = ({
       setFavoriteIds(blogsList.map(blog => blog._id || ''));
     } catch (error) {
       console.error('Error fetching favorites:', error);
+      
+      // Handle network errors specifically
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('Network error: Unable to connect to the server');
+      }
+      
+      // Reset favorites on error
+      setFavorites([]);
+      setFavoriteIds([]);
     } finally {
       setIsLoading(false);
     }
@@ -96,8 +130,32 @@ export const FavoritesProvider = ({
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to toggle favorite');
+        // Provide more specific error messages based on status code
+        let errorMessage = 'Failed to toggle favorite';
+        
+        switch (response.status) {
+          case 401:
+            errorMessage = 'You are not authorized to modify favorites. Please log in again.';
+            break;
+          case 403:
+            errorMessage = 'Access forbidden. You do not have permission to modify favorites.';
+            break;
+          case 404:
+            errorMessage = 'Blog not found or favorites service unavailable.';
+            break;
+          case 500:
+            errorMessage = 'Server error occurred while updating favorites.';
+            break;
+          default:
+            try {
+              const data = await response.json();
+              errorMessage = data.error || errorMessage;
+            } catch {
+              // If we can't parse error response, use default message
+            }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       // Update local state optimistically
@@ -110,6 +168,12 @@ export const FavoritesProvider = ({
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
+      
+      // Handle network errors specifically
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('Network error: Unable to connect to the server');
+      }
+      
       // Revert optimistic update on error
       await refreshFavorites();
     } finally {

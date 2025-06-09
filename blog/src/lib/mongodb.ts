@@ -5,7 +5,16 @@ const uri = process.env.MONGODB_URI;
 const options = {
   // Recommended MongoClient options
   retryWrites: true,
-  serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
+  serverSelectionTimeoutMS: 10000, // Increased timeout to 10 seconds
+  socketTimeoutMS: 45000, // Socket timeout
+  connectTimeoutMS: 10000, // Connection timeout
+  maxPoolSize: 10, // Maximum number of connections in the connection pool
+  minPoolSize: 5, // Minimum number of connections in the connection pool
+  maxIdleTimeMS: 30000, // Maximum idle time for connections
+  // SSL/TLS options to fix the handshake error
+  tls: true,
+  tlsAllowInvalidCertificates: false,
+  tlsAllowInvalidHostnames: false,
 };
 
 let clientPromise: Promise<MongoClient> | null = null;
@@ -45,13 +54,23 @@ function getClientPromise(): Promise<MongoClient> {
 
     if (!globalWithMongo._mongoClientPromise) {
       const client = new MongoClient(uri, options);
-      globalWithMongo._mongoClientPromise = client.connect();
+      globalWithMongo._mongoClientPromise = client.connect().catch((error) => {
+        console.error('MongoDB connection failed:', error);
+        // Reset the promise so it can be retried
+        globalWithMongo._mongoClientPromise = undefined;
+        throw error;
+      });
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
     // In production mode, it's best to not use a global variable.
     const client = new MongoClient(uri, options);
-    clientPromise = client.connect();
+    clientPromise = client.connect().catch((error) => {
+      console.error('MongoDB connection failed:', error);
+      // Reset the promise so it can be retried
+      clientPromise = null;
+      throw error;
+    });
   }
 
   return clientPromise;
@@ -68,6 +87,20 @@ export async function connectToDatabase() {
     if (error instanceof Error && error.message.includes('Database connection not available during build')) {
       throw error;
     }
+    
+    // Handle specific MongoDB connection errors
+    if (error instanceof Error) {
+      if (error.message.includes('MongoServerSelectionError') || error.message.includes('SSL') || error.message.includes('TLS')) {
+        console.error('MongoDB SSL/TLS Connection Error:', error.message);
+        throw new Error('Failed to establish secure connection to MongoDB. Please check your connection settings.');
+      }
+      if (error.message.includes('authentication')) {
+        console.error('MongoDB Authentication Error:', error.message);
+        throw new Error('Failed to authenticate with MongoDB. Please check your credentials.');
+      }
+    }
+    
+    console.error('MongoDB Connection Error:', error);
     throw new Error('Failed to connect to database');
   }
 }
