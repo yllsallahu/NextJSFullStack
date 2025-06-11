@@ -25,7 +25,7 @@ Environment: Production, Preview, Development
 
 Ensure these are also set:
 ```
-NEXTAUTH_SECRET = Ho4ppXnUavCGmWFG7MCquYkIIwrq4fn31w0TplRRx8=
+NEXTAUTH_SECRET = [YOUR_NEXTAUTH_SECRET_HERE]
 NEXTAUTH_URL = https://next-js-full-stack-blog.vercel.app
 ```
 

@@ -2,58 +2,72 @@ import { MongoClient } from 'mongodb';
 
 // Allow build to continue without MongoDB URI 
 const uri = process.env.MONGODB_URI;
-// Vercel-specific MongoDB connection handling
-const getConnectionOptions = (isRetry = false) => {
+
+// Vercel-specific MongoDB connection handling with aggressive SSL fix
+const getConnectionOptions = (disableSSL = false) => {
   const isVercel = process.env.VERCEL === '1';
   
-  if (isRetry || isVercel) {
-    // Vercel-optimized options to handle SSL issues
-    return {
-      serverSelectionTimeoutMS: 3000,
-      socketTimeoutMS: 20000,
-      connectTimeoutMS: 5000,
-      maxPoolSize: 5,
-      minPoolSize: 1,
-      retryWrites: true,
-      appName: 'NextJSFullStackBlog',
-      // Vercel-specific SSL settings
-      tls: true,
-      tlsAllowInvalidCertificates: true, // More permissive for Vercel
-      tlsAllowInvalidHostnames: true,    // More permissive for Vercel
-      tlsInsecure: true,                 // Allow insecure connections
-    };
+  if (isVercel) {
+    if (disableSSL) {
+      // Complete SSL bypass for Vercel
+      console.log('🔄 Using non-SSL connection for Vercel (SSL bypass)');
+      return {
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 8000,
+        socketTimeoutMS: 30000,
+        retryWrites: true,
+        appName: 'NextJSFullStackBlog',
+        // Completely disable SSL
+        tls: false,
+        ssl: false,
+      };
+    } else {
+      // Try SSL first on Vercel
+      console.log('🔐 Attempting SSL connection on Vercel');
+      return {
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 8000,
+        socketTimeoutMS: 30000,
+        retryWrites: true,
+        appName: 'NextJSFullStackBlog',
+        tls: true,
+        tlsAllowInvalidCertificates: true,
+        tlsAllowInvalidHostnames: true,
+      };
+    }
   }
   
   // Local development options (standard SSL)
   return {
-    serverSelectionTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 10000,
     socketTimeoutMS: 45000,
     connectTimeoutMS: 10000,
     maxPoolSize: 10,
-    minPoolSize: 1,
+    minPoolSize: 5,
     maxIdleTimeMS: 30000,
     retryWrites: true,
-    retryReads: true,
+    appName: 'NextJSFullStackBlog',
     tls: true,
     tlsAllowInvalidCertificates: false,
     tlsAllowInvalidHostnames: false,
-    directConnection: false,
-    appName: 'NextJSFullStackBlog',
   };
 };
 
-// Helper function to modify URI for fallback connection
-const getFallbackUri = (originalUri: string): string => {
+// Helper function to modify URI for non-SSL connection
+const getNoSSLUri = (originalUri: string): string => {
   if (!originalUri) return originalUri;
   
-  // Remove SSL parameters and add ssl=false
-  const url = new URL(originalUri);
-  url.searchParams.set('ssl', 'false');
-  url.searchParams.set('tls', 'false');
-  url.searchParams.delete('tlsAllowInvalidCertificates');
-  url.searchParams.delete('tlsAllowInvalidHostnames');
-  
-  return url.toString();
+  try {
+    const url = new URL(originalUri);
+    url.searchParams.set('ssl', 'false');
+    url.searchParams.set('tls', 'false');
+    url.searchParams.delete('tlsAllowInvalidCertificates');
+    url.searchParams.delete('tlsAllowInvalidHostnames');
+    return url.toString();
+  } catch (error) {
+    console.error('Failed to modify URI:', error);
+    return originalUri;
+  }
 };
 
 let clientPromise: Promise<MongoClient> | null = null;
@@ -102,56 +116,62 @@ function getClientPromise(): Promise<MongoClient> {
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
-    // In production mode, optimize for Vercel
-    const connectWithVercelOptimization = async (): Promise<MongoClient> => {
-      const isVercel = process.env.VERCEL === '1';
-      console.log(`Connecting to MongoDB (Vercel: ${isVercel})`);
+    // Production mode - with aggressive Vercel SSL fixes
+    const isVercel = process.env.VERCEL === '1';
+    
+    const connectWithRetry = async (): Promise<MongoClient> => {
+      console.log(`🔌 Attempting MongoDB connection (Vercel: ${isVercel})`);
       
       try {
-        // Use Vercel-optimized settings from the start if on Vercel
-        const options = getConnectionOptions(isVercel);
-        console.log('Connection options:', { ...options, /* hide sensitive data */ });
-        
-        const client = new MongoClient(uri, options);
-        const connectedClient = await client.connect();
-        console.log('✅ MongoDB connection successful');
-        return connectedClient;
+        // First attempt: Try with SSL
+        console.log('🔐 Attempt 1: Standard SSL connection');
+        const client = new MongoClient(uri, getConnectionOptions(false));
+        return await client.connect();
       } catch (error) {
-        console.error('❌ MongoDB connection failed:', error);
+        console.error('❌ SSL connection failed:', error);
         
-        // If we're on Vercel and still getting SSL errors, try one more fallback
-        if (isVercel && error instanceof Error && (
+        // Check for specific SSL errors
+        if (error instanceof Error && (
           error.message.includes('SSL') || 
           error.message.includes('TLS') || 
           error.message.includes('ssl3_read_bytes') ||
           error.message.includes('tlsv1 alert internal error') ||
           error.message.includes('alert number 80')
         )) {
-          console.log('🔄 Trying final fallback for Vercel SSL issues...');
+          console.log('🔄 Retrying with SSL disabled...');
           
           try {
-            // Final fallback: minimal options
-            const minimalOptions = {
-              serverSelectionTimeoutMS: 2000,
-              connectTimeoutMS: 3000,
-              retryWrites: true,
-              appName: 'NextJSFullStackBlog',
-            };
-            
-            const fallbackClient = new MongoClient(uri, minimalOptions);
+            // Second attempt: Disable SSL completely
+            const noSSLUri = getNoSSLUri(uri);
+            console.log('🔓 Attempt 2: Non-SSL connection');
+            const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(true));
             return await fallbackClient.connect();
           } catch (fallbackError) {
-            console.error('❌ Final fallback also failed:', fallbackError);
-            throw error; // Throw original error for better debugging
+            console.error('❌ Non-SSL connection also failed:', fallbackError);
+            
+            try {
+              // Final attempt: Minimal options
+              console.log('⚡ Attempt 3: Minimal configuration');
+              const minimalClient = new MongoClient(uri, {
+                serverSelectionTimeoutMS: 3000,
+                connectTimeoutMS: 5000,
+                retryWrites: true,
+                appName: 'NextJSFullStackBlog',
+              });
+              return await minimalClient.connect();
+            } catch (minimalError) {
+              console.error('❌ All connection attempts failed');
+              throw error; // Throw original SSL error for debugging
+            }
           }
         }
         
         throw error;
       }
     };
-    
-    clientPromise = connectWithVercelOptimization().catch((error) => {
-      console.error('All MongoDB connection attempts failed:', error);
+
+    clientPromise = connectWithRetry().catch((error) => {
+      console.error('MongoDB connection completely failed:', error);
       clientPromise = null; // Reset for retry
       throw error;
     });

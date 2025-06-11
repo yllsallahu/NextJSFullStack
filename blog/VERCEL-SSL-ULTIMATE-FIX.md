@@ -57,7 +57,7 @@ Environment: Production, Preview, Development
 5. Ensure all other variables are set:
 
 ```
-NEXTAUTH_SECRET = Ho4ppXnUavCGmWFG7MCquYkIIwrq4fn31w0TplRRx8=
+NEXTAUTH_SECRET = [YOUR_NEXTAUTH_SECRET_HERE]
 NEXTAUTH_URL = https://next-js-full-stack-blog.vercel.app
 MONGODB_URI = mongodb+srv://ys68687:yllimali123@clusternext.zlp4afn.mongodb.net/myapp?retryWrites=true&w=majority&ssl=false&appName=NextJSFullStackBlog
 ```

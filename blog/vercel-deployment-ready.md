@@ -7,7 +7,7 @@ Add these **exact** variables to your Vercel dashboard:
 ### 1. NEXTAUTH_SECRET
 ```
 Name: NEXTAUTH_SECRET
-Value: Ho4ppXnUavCGmWFG7MCquYkIIwrq4fn31w0TplRRx8=
+Value: [YOUR_NEXTAUTH_SECRET_HERE]
 Environment: Production, Preview, Development
 ```
 
