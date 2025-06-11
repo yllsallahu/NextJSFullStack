@@ -2,30 +2,58 @@ import { MongoClient } from 'mongodb';
 
 // Allow build to continue without MongoDB URI 
 const uri = process.env.MONGODB_URI;
-// Vercel-optimized MongoDB connection options to fix SSL/TLS issues
-const options = {
-  // Connection timeouts
-  serverSelectionTimeoutMS: 5000, // Reduced timeout for faster failure detection
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 10000,
+// Vercel-specific MongoDB connection handling
+const getConnectionOptions = (isRetry = false) => {
+  const isVercel = process.env.VERCEL === '1';
   
-  // Connection pool settings
-  maxPoolSize: 10,
-  minPoolSize: 1, // Reduced minimum for Vercel serverless
-  maxIdleTimeMS: 30000,
+  if (isRetry || isVercel) {
+    // Vercel-optimized options to handle SSL issues
+    return {
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 20000,
+      connectTimeoutMS: 5000,
+      maxPoolSize: 5,
+      minPoolSize: 1,
+      retryWrites: true,
+      appName: 'NextJSFullStackBlog',
+      // Vercel-specific SSL settings
+      tls: true,
+      tlsAllowInvalidCertificates: true, // More permissive for Vercel
+      tlsAllowInvalidHostnames: true,    // More permissive for Vercel
+      tlsInsecure: true,                 // Allow insecure connections
+    };
+  }
   
-  // Retry settings
-  retryWrites: true,
-  retryReads: true,
+  // Local development options (standard SSL)
+  return {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 10000,
+    maxPoolSize: 10,
+    minPoolSize: 1,
+    maxIdleTimeMS: 30000,
+    retryWrites: true,
+    retryReads: true,
+    tls: true,
+    tlsAllowInvalidCertificates: false,
+    tlsAllowInvalidHostnames: false,
+    directConnection: false,
+    appName: 'NextJSFullStackBlog',
+  };
+};
+
+// Helper function to modify URI for fallback connection
+const getFallbackUri = (originalUri: string): string => {
+  if (!originalUri) return originalUri;
   
-  // SSL/TLS settings optimized for Vercel + MongoDB Atlas
-  tls: true,
-  tlsAllowInvalidCertificates: false,
-  tlsAllowInvalidHostnames: false,
+  // Remove SSL parameters and add ssl=false
+  const url = new URL(originalUri);
+  url.searchParams.set('ssl', 'false');
+  url.searchParams.set('tls', 'false');
+  url.searchParams.delete('tlsAllowInvalidCertificates');
+  url.searchParams.delete('tlsAllowInvalidHostnames');
   
-  // Additional options to resolve SSL handshake issues on Vercel
-  directConnection: false, // Let MongoDB driver handle connection routing
-  appName: 'NextJSFullStackBlog', // App name for MongoDB logs
+  return url.toString();
 };
 
 let clientPromise: Promise<MongoClient> | null = null;
@@ -64,7 +92,7 @@ function getClientPromise(): Promise<MongoClient> {
     }
 
     if (!globalWithMongo._mongoClientPromise) {
-      const client = new MongoClient(uri, options);
+      const client = new MongoClient(uri, getConnectionOptions());
       globalWithMongo._mongoClientPromise = client.connect().catch((error) => {
         console.error('MongoDB connection failed:', error);
         // Reset the promise so it can be retried
@@ -74,34 +102,57 @@ function getClientPromise(): Promise<MongoClient> {
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
-    // In production mode, it's best to not use a global variable.
-    const client = new MongoClient(uri, options);
-    clientPromise = client.connect().catch(async (error) => {
-      console.error('MongoDB connection failed with primary options:', error);
+    // In production mode, optimize for Vercel
+    const connectWithVercelOptimization = async (): Promise<MongoClient> => {
+      const isVercel = process.env.VERCEL === '1';
+      console.log(`Connecting to MongoDB (Vercel: ${isVercel})`);
       
-      // If we get SSL/TLS errors on Vercel, try with alternative settings
-      if (error.message.includes('SSL') || error.message.includes('TLS') || error.message.includes('ssl3_read_bytes')) {
-        console.log('Retrying with alternative SSL settings...');
+      try {
+        // Use Vercel-optimized settings from the start if on Vercel
+        const options = getConnectionOptions(isVercel);
+        console.log('Connection options:', { ...options, /* hide sensitive data */ });
         
-        const fallbackOptions = {
-          ...options,
-          serverSelectionTimeoutMS: 3000, // Even shorter timeout for fallback
-          tls: true,
-          ssl: true, // Explicit SSL flag
-          sslValidate: false, // More permissive SSL validation for Vercel
-        };
+        const client = new MongoClient(uri, options);
+        const connectedClient = await client.connect();
+        console.log('✅ MongoDB connection successful');
+        return connectedClient;
+      } catch (error) {
+        console.error('❌ MongoDB connection failed:', error);
         
-        try {
-          const fallbackClient = new MongoClient(uri, fallbackOptions);
-          return await fallbackClient.connect();
-        } catch (fallbackError) {
-          console.error('Fallback connection also failed:', fallbackError);
-          throw error; // Throw original error
+        // If we're on Vercel and still getting SSL errors, try one more fallback
+        if (isVercel && error instanceof Error && (
+          error.message.includes('SSL') || 
+          error.message.includes('TLS') || 
+          error.message.includes('ssl3_read_bytes') ||
+          error.message.includes('tlsv1 alert internal error') ||
+          error.message.includes('alert number 80')
+        )) {
+          console.log('🔄 Trying final fallback for Vercel SSL issues...');
+          
+          try {
+            // Final fallback: minimal options
+            const minimalOptions = {
+              serverSelectionTimeoutMS: 2000,
+              connectTimeoutMS: 3000,
+              retryWrites: true,
+              appName: 'NextJSFullStackBlog',
+            };
+            
+            const fallbackClient = new MongoClient(uri, minimalOptions);
+            return await fallbackClient.connect();
+          } catch (fallbackError) {
+            console.error('❌ Final fallback also failed:', fallbackError);
+            throw error; // Throw original error for better debugging
+          }
         }
+        
+        throw error;
       }
-      
-      // Reset the promise so it can be retried
-      clientPromise = null;
+    };
+    
+    clientPromise = connectWithVercelOptimization().catch((error) => {
+      console.error('All MongoDB connection attempts failed:', error);
+      clientPromise = null; // Reset for retry
       throw error;
     });
   }
