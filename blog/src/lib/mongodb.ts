@@ -2,19 +2,30 @@ import { MongoClient } from 'mongodb';
 
 // Allow build to continue without MongoDB URI 
 const uri = process.env.MONGODB_URI;
+// Vercel-optimized MongoDB connection options to fix SSL/TLS issues
 const options = {
-  // Recommended MongoClient options
+  // Connection timeouts
+  serverSelectionTimeoutMS: 5000, // Reduced timeout for faster failure detection
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+  
+  // Connection pool settings
+  maxPoolSize: 10,
+  minPoolSize: 1, // Reduced minimum for Vercel serverless
+  maxIdleTimeMS: 30000,
+  
+  // Retry settings
   retryWrites: true,
-  serverSelectionTimeoutMS: 10000, // Increased timeout to 10 seconds
-  socketTimeoutMS: 45000, // Socket timeout
-  connectTimeoutMS: 10000, // Connection timeout
-  maxPoolSize: 10, // Maximum number of connections in the connection pool
-  minPoolSize: 5, // Minimum number of connections in the connection pool
-  maxIdleTimeMS: 30000, // Maximum idle time for connections
-  // SSL/TLS options to fix the handshake error
+  retryReads: true,
+  
+  // SSL/TLS settings optimized for Vercel + MongoDB Atlas
   tls: true,
   tlsAllowInvalidCertificates: false,
   tlsAllowInvalidHostnames: false,
+  
+  // Additional options to resolve SSL handshake issues on Vercel
+  directConnection: false, // Let MongoDB driver handle connection routing
+  appName: 'NextJSFullStackBlog', // App name for MongoDB logs
 };
 
 let clientPromise: Promise<MongoClient> | null = null;
@@ -65,8 +76,30 @@ function getClientPromise(): Promise<MongoClient> {
   } else {
     // In production mode, it's best to not use a global variable.
     const client = new MongoClient(uri, options);
-    clientPromise = client.connect().catch((error) => {
-      console.error('MongoDB connection failed:', error);
+    clientPromise = client.connect().catch(async (error) => {
+      console.error('MongoDB connection failed with primary options:', error);
+      
+      // If we get SSL/TLS errors on Vercel, try with alternative settings
+      if (error.message.includes('SSL') || error.message.includes('TLS') || error.message.includes('ssl3_read_bytes')) {
+        console.log('Retrying with alternative SSL settings...');
+        
+        const fallbackOptions = {
+          ...options,
+          serverSelectionTimeoutMS: 3000, // Even shorter timeout for fallback
+          tls: true,
+          ssl: true, // Explicit SSL flag
+          sslValidate: false, // More permissive SSL validation for Vercel
+        };
+        
+        try {
+          const fallbackClient = new MongoClient(uri, fallbackOptions);
+          return await fallbackClient.connect();
+        } catch (fallbackError) {
+          console.error('Fallback connection also failed:', fallbackError);
+          throw error; // Throw original error
+        }
+      }
+      
       // Reset the promise so it can be retried
       clientPromise = null;
       throw error;
