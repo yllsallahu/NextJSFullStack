@@ -19,6 +19,7 @@
     "@hookform/resolvers": "^5.0.1",
     "@types/formidable": "^3.4.5",
     "@types/mongoose": "^5.11.96",
+    "@vercel/blob": "^1.1.1",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.5.0",
     "formidable": "^3.5.4",
