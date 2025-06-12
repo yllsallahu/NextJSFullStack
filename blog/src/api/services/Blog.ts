@@ -251,7 +251,7 @@ export async function favoriteBlogs(userId: string, blogId: string) {
   }
 }
 
-export async function getFavoriteBlogs(userId: string) {
+export async function getFavoriteBlogs(userId: string): Promise<BlogDocument[]> {
   try {
     const client = await clientPromise;
     const db = client.db("myapp");
@@ -263,7 +263,7 @@ export async function getFavoriteBlogs(userId: string) {
     }
     
     // Get the actual blog posts
-    const blogs = await db.collection("blogs")
+    const blogs = await db.collection<BlogDocument>("blogs")
       .find({ _id: { $in: user.favoriteBlogs.map((id: string) => new ObjectId(id)) } })
       .toArray();
     
