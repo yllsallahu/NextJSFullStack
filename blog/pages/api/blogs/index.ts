@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getBlogs, createBlog } from "api/services/Blog";
 import { getToken } from "next-auth/jwt";
 import { getUserById } from "api/services/User";
+import { convertBlogDocumentsToBlog } from "api/utils/blogUtils";
 
 export default async function handler(
   req: NextApiRequest,
@@ -9,7 +10,9 @@ export default async function handler(
 ) {
   if (req.method === "GET") {
     try {
-      const blogs = await getBlogs();
+      const blogDocs = await getBlogs();
+      // Convert MongoDB documents to proper Blog format
+      const blogs = convertBlogDocumentsToBlog(blogDocs);
       res.status(200).json(blogs);
     } catch (error) {
       console.error("Gabim gjatë marrjes së blogeve:", error);

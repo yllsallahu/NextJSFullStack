@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from 'next-auth/jwt';
 import { getBlogById, likeBlog, deleteBlog, updateBlog } from 'api/services/Blog';
 import { getUserById } from 'api/services/User';
+import { convertBlogDocumentsToBlog } from 'api/utils/blogUtils';
 import { ObjectId } from 'mongodb';
 
 export default async function handler(
@@ -26,10 +27,12 @@ export default async function handler(
   try {
     switch (req.method) {
       case 'GET':
-        const blog = await getBlogById(id);
-        if (!blog) {
+        const blogDoc = await getBlogById(id);
+        if (!blogDoc) {
           return res.status(404).json({ error: 'Blog not found' });
         }
+        // Convert MongoDB document to proper Blog format
+        const blog = convertBlogDocumentsToBlog([blogDoc])[0];
         return res.json(blog);
 
       case 'POST':
