@@ -3,71 +3,36 @@ import { MongoClient } from 'mongodb';
 // Allow build to continue without MongoDB URI 
 const uri = process.env.MONGODB_URI;
 
-// Vercel-specific MongoDB connection handling with aggressive SSL fix
-const getConnectionOptions = (disableSSL = false) => {
+// Check if URI already contains ssl=false to avoid conflicts
+const uriHasSSLDisabled = uri?.includes('ssl=false') || uri?.includes('tls=false') || false;
+
+// MongoDB connection options that respect URI SSL settings
+const getConnectionOptions = () => {
   const isVercel = process.env.VERCEL === '1';
   
-  if (isVercel) {
-    if (disableSSL) {
-      // Complete SSL bypass for Vercel
-      console.log('🔄 Using non-SSL connection for Vercel (SSL bypass)');
-      return {
-        serverSelectionTimeoutMS: 5000,
-        connectTimeoutMS: 8000,
-        socketTimeoutMS: 30000,
-        retryWrites: true,
-        appName: 'NextJSFullStackBlog',
-        // Completely disable SSL
-        tls: false,
-        ssl: false,
-      };
-    } else {
-      // Try SSL first on Vercel
-      console.log('🔐 Attempting SSL connection on Vercel');
-      return {
-        serverSelectionTimeoutMS: 5000,
-        connectTimeoutMS: 8000,
-        socketTimeoutMS: 30000,
-        retryWrites: true,
-        appName: 'NextJSFullStackBlog',
-        tls: true,
-        tlsAllowInvalidCertificates: true,
-        tlsAllowInvalidHostnames: true,
-      };
-    }
-  }
-  
-  // Local development options (standard SSL)
-  return {
-    serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 45000,
-    connectTimeoutMS: 10000,
-    maxPoolSize: 10,
-    minPoolSize: 5,
-    maxIdleTimeMS: 30000,
+  // Base options without any SSL/TLS settings
+  const baseOptions = {
+    serverSelectionTimeoutMS: isVercel ? 5000 : 10000,
+    connectTimeoutMS: isVercel ? 8000 : 10000,
+    socketTimeoutMS: isVercel ? 30000 : 45000,
     retryWrites: true,
     appName: 'NextJSFullStackBlog',
-    tls: true,
-    tlsAllowInvalidCertificates: false,
-    tlsAllowInvalidHostnames: false,
   };
-};
 
-// Helper function to modify URI for non-SSL connection
-const getNoSSLUri = (originalUri: string): string => {
-  if (!originalUri) return originalUri;
-  
-  try {
-    const url = new URL(originalUri);
-    url.searchParams.set('ssl', 'false');
-    url.searchParams.set('tls', 'false');
-    url.searchParams.delete('tlsAllowInvalidCertificates');
-    url.searchParams.delete('tlsAllowInvalidHostnames');
-    return url.toString();
-  } catch (error) {
-    console.error('Failed to modify URI:', error);
-    return originalUri;
+  // If URI explicitly disables SSL, don't add any SSL/TLS options
+  if (uriHasSSLDisabled) {
+    console.log('� Using non-SSL connection (SSL disabled in URI)');
+    return baseOptions;
   }
+
+  // Only add SSL options if URI doesn't disable SSL
+  console.log('🔐 Using SSL connection (SSL enabled)');
+  return {
+    ...baseOptions,
+    tls: true,
+    tlsAllowInvalidCertificates: isVercel, // More permissive on Vercel
+    tlsAllowInvalidHostnames: isVercel,
+  };
 };
 
 let clientPromise: Promise<MongoClient> | null = null;
@@ -116,53 +81,35 @@ function getClientPromise(): Promise<MongoClient> {
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
-    // Production mode - with aggressive Vercel SSL fixes
-    const isVercel = process.env.VERCEL === '1';
-    
+    // Production mode - simplified connection logic
     const connectWithRetry = async (): Promise<MongoClient> => {
-      console.log(`🔌 Attempting MongoDB connection (Vercel: ${isVercel})`);
+      const isVercel = process.env.VERCEL === '1';
+      console.log(`🔌 Attempting MongoDB connection (Vercel: ${isVercel}, SSL disabled in URI: ${uriHasSSLDisabled})`);
       
       try {
-        // First attempt: Try with SSL
-        console.log('🔐 Attempt 1: Standard SSL connection');
-        const client = new MongoClient(uri, getConnectionOptions(false));
+        // Single connection attempt with proper options based on URI
+        const client = new MongoClient(uri, getConnectionOptions());
         return await client.connect();
       } catch (error) {
-        console.error('❌ SSL connection failed:', error);
+        console.error('❌ MongoDB connection failed:', error);
         
-        // Check for specific SSL errors
-        if (error instanceof Error && (
-          error.message.includes('SSL') || 
-          error.message.includes('TLS') || 
-          error.message.includes('ssl3_read_bytes') ||
-          error.message.includes('tlsv1 alert internal error') ||
-          error.message.includes('alert number 80')
-        )) {
-          console.log('🔄 Retrying with SSL disabled...');
+        // If this is a SSL/TLS mismatch error and URI doesn't disable SSL, try minimal config
+        if (error instanceof Error && 
+            error.message.includes('All values of tls/ssl must be the same') &&
+            !uriHasSSLDisabled) {
+          console.log('� Retrying with minimal configuration...');
           
           try {
-            // Second attempt: Disable SSL completely
-            const noSSLUri = getNoSSLUri(uri);
-            console.log('🔓 Attempt 2: Non-SSL connection');
-            const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(true));
-            return await fallbackClient.connect();
+            const minimalClient = new MongoClient(uri, {
+              serverSelectionTimeoutMS: 3000,
+              connectTimeoutMS: 5000,
+              retryWrites: true,
+              appName: 'NextJSFullStackBlog',
+            });
+            return await minimalClient.connect();
           } catch (fallbackError) {
-            console.error('❌ Non-SSL connection also failed:', fallbackError);
-            
-            try {
-              // Final attempt: Minimal options
-              console.log('⚡ Attempt 3: Minimal configuration');
-              const minimalClient = new MongoClient(uri, {
-                serverSelectionTimeoutMS: 3000,
-                connectTimeoutMS: 5000,
-                retryWrites: true,
-                appName: 'NextJSFullStackBlog',
-              });
-              return await minimalClient.connect();
-            } catch (minimalError) {
-              console.error('❌ All connection attempts failed');
-              throw error; // Throw original SSL error for debugging
-            }
+            console.error('❌ Minimal configuration also failed:', fallbackError);
+            throw error; // Throw original error for debugging
           }
         }
         
