@@ -253,27 +253,21 @@ export async function favoriteBlogs(userId: string, blogId: string) {
 
 export async function getFavoriteBlogs(userId: string) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     // Get user's favorite blog IDs
-    const user = await db.collection("users").findOne(
-      { _id: new ObjectId(userId) } as any,
-      { projection: { favorites: 1 } }
-    );
-    
-    if (!user || !user.favorites || user.favorites.length === 0) {
+    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    if (!user || !user.favoriteBlogs) {
       return [];
     }
     
-    // Get the actual blog documents
-    const favoriteIds = user.favorites.map((id: string) => new ObjectId(id));
-    const favoriteBlogs = await db.collection<BlogDocument>("blogs")
-      .find({ _id: { $in: favoriteIds } } as any)
-      .sort({ createdAt: -1 })
+    // Get the actual blog posts
+    const blogs = await db.collection("blogs")
+      .find({ _id: { $in: user.favoriteBlogs.map((id: string) => new ObjectId(id)) } })
       .toArray();
     
-    return favoriteBlogs;
+    return blogs;
   } catch (error) {
     console.error('Error in getFavoriteBlogs:', error);
     throw error;

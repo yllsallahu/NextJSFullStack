@@ -56,9 +56,14 @@ export default async function handler(
     await db.command({ ping: 1 });
     console.log("✅ Database ping successful");
     
+    // Get the connection string (without password)
+    const uri = process.env.MONGODB_URI || '';
+    const sanitizedUri = uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
+    
     return res.status(200).json({
       success: true,
       message: "Successfully connected to MongoDB",
+      connectionString: sanitizedUri,
       database: "myapp",
       cluster: "FinalNextJs",
       environment: {
@@ -84,6 +89,7 @@ export default async function handler(
     return res.status(500).json({ 
       success: false, 
       error: errorDetails,
+      connectionString: process.env.MONGODB_URI ? '***' : 'Not set',
       environment: {
         hasMongoURI: !!process.env.MONGODB_URI,
         hasSecret: !!process.env.NEXTAUTH_SECRET,
