@@ -24,7 +24,7 @@ export default async function handler(
     }
 
     // Get all users
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db('myapp');
     
     const users = await db.collection('users')

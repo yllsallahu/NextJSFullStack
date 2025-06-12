@@ -36,7 +36,7 @@ export default async function handler(
     console.log("Attempting to connect to MongoDB...");
     console.log('MongoDB URI:', process.env.MONGODB_URI?.replace(/\/\/[^:]+:[^@]+@/, '//****:****@'));
     
-    const client = await clientPromise();
+    const client = await clientPromise;
     console.log("✅ MongoDB client imported successfully");
     
     console.log("🔍 Testing connection - Step 3: Call client function");
