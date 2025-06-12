@@ -1,89 +1,79 @@
 import { MongoClient } from 'mongodb';
 
-// Allow build to continue without MongoDB URI 
 const uri = process.env.MONGODB_URI;
 
-// Clean connection options for Vercel
-const getConnectionOptions = (useSSL = true) => {
+// Optimized connection specifically for Vercel serverless
+const getVercelOptions = () => {
   const isVercel = process.env.VERCEL === '1';
   
   if (isVercel) {
-    // Vercel-specific settings
-    if (useSSL) {
-      return {
-        serverSelectionTimeoutMS: 5000,
-        connectTimeoutMS: 8000,
-        socketTimeoutMS: 30000,
-        retryWrites: true,
-        appName: 'NextJSFullStackBlog',
-        // SSL enabled with permissive settings for Vercel
-        tls: true,
-        tlsAllowInvalidCertificates: true,
-        tlsAllowInvalidHostnames: true,
-      };
-    } else {
-      return {
-        serverSelectionTimeoutMS: 5000,
-        connectTimeoutMS: 8000,
-        socketTimeoutMS: 30000,
-        retryWrites: true,
-        appName: 'NextJSFullStackBlog',
-        // SSL completely disabled
-        tls: false,
-        ssl: false,
-      };
-    }
+    console.log('🔧 Using Vercel-optimized MongoDB settings');
+    return {
+      // Shorter timeouts for serverless
+      serverSelectionTimeoutMS: 3000,
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 10000,
+      
+      // Essential settings
+      retryWrites: true,
+      maxPoolSize: 1, // Important for serverless
+      minPoolSize: 0,
+      maxIdleTimeMS: 30000,
+      
+      // Try without SSL first for Vercel
+      tls: false,
+      ssl: false,
+      
+      // App identification
+      appName: 'NextJSFullStackBlog',
+    };
   }
   
-  // Local development - standard settings
+  // Development/production settings
   return {
     serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 45000,
     connectTimeoutMS: 10000,
-    maxPoolSize: 10,
-    minPoolSize: 5,
-    maxIdleTimeMS: 30000,
+    socketTimeoutMS: 30000,
     retryWrites: true,
+    maxPoolSize: 10,
+    minPoolSize: 2,
+    maxIdleTimeMS: 30000,
     appName: 'NextJSFullStackBlog',
-    tls: true,
-    tlsAllowInvalidCertificates: false,
-    tlsAllowInvalidHostnames: false,
   };
 };
 
-// Create clean URI without SSL conflicts
-const createCleanUri = (originalUri: string, forceNoSSL = false): string => {
+// Clean the URI to remove conflicting SSL parameters
+const cleanUri = (originalUri: string): string => {
   if (!originalUri) return originalUri;
   
   try {
     const url = new URL(originalUri);
     
-    // Remove all SSL/TLS parameters to avoid conflicts
-    url.searchParams.delete('ssl');
-    url.searchParams.delete('tls'); 
-    url.searchParams.delete('tlsAllowInvalidCertificates');
-    url.searchParams.delete('tlsAllowInvalidHostnames');
+    // Remove all SSL/TLS related parameters to avoid conflicts
+    const sslParams = [
+      'ssl', 'tls', 'tlsAllowInvalidCertificates', 
+      'tlsAllowInvalidHostnames', 'tlsInsecure'
+    ];
     
-    if (forceNoSSL) {
+    sslParams.forEach(param => url.searchParams.delete(param));
+    
+    // For Vercel, explicitly disable SSL in URI
+    if (process.env.VERCEL === '1') {
       url.searchParams.set('ssl', 'false');
     }
     
     return url.toString();
   } catch (error) {
-    console.error('Failed to clean URI:', error);
+    console.error('Failed to parse URI:', error);
     return originalUri;
   }
 };
 
-let clientPromise: Promise<MongoClient> | null = null;
+let cachedClient: MongoClient | null = null;
+let cachedPromise: Promise<MongoClient> | null = null;
 
-// Function to initialize client promise lazily
-function getClientPromise(): Promise<MongoClient> {
-  if (clientPromise) {
-    return clientPromise;
-  }
-
-  // Build-time detection for Vercel and other environments
+async function connectToMongoDB(): Promise<MongoClient> {
+  // Build-time check
   const isBuildTime = typeof window === 'undefined' && (
     (process.env.VERCEL === '1' && !process.env.VERCEL_URL) ||
     process.env.CI === 'true' ||
@@ -91,132 +81,130 @@ function getClientPromise(): Promise<MongoClient> {
   );
 
   if (isBuildTime) {
-    clientPromise = Promise.reject(new Error('Database connection not available during build'));
-    return clientPromise;
+    throw new Error('Database connection not available during build');
   }
 
   if (!uri) {
-    throw new Error('MONGODB_URI environment variable is required');
+    throw new Error('MONGODB_URI environment variable is not set');
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    // Development mode with HMR support
-    let globalWithMongo = global as typeof globalThis & {
-      _mongoClientPromise?: Promise<MongoClient>
+  // Return cached client if available
+  if (cachedClient) {
+    try {
+      // Test if connection is still alive
+      await cachedClient.db().admin().ping();
+      console.log('♻️ Reusing existing MongoDB connection');
+      return cachedClient;
+    } catch (error) {
+      console.log('🔄 Cached connection expired, creating new one');
+      cachedClient = null;
     }
+  }
 
-    if (!globalWithMongo._mongoClientPromise) {
-      const cleanUri = createCleanUri(uri);
-      const client = new MongoClient(cleanUri, getConnectionOptions(true));
-      globalWithMongo._mongoClientPromise = client.connect().catch((error) => {
-        console.error('MongoDB connection failed in development:', error);
-        globalWithMongo._mongoClientPromise = undefined;
-        throw error;
-      });
-    }
-    clientPromise = globalWithMongo._mongoClientPromise;
-  } else {
-    // Production mode with aggressive Vercel SSL bypass
-    const connectWithRetry = async (): Promise<MongoClient> => {
-      const isVercel = process.env.VERCEL === '1';
-      console.log(`🔌 MongoDB connection attempt (Vercel: ${isVercel})`);
+  // Return cached promise if connection is in progress
+  if (cachedPromise) {
+    console.log('⏳ Waiting for ongoing MongoDB connection');
+    return cachedPromise;
+  }
+
+  const isVercel = process.env.VERCEL === '1';
+  console.log(`🔌 Creating new MongoDB connection (Vercel: ${isVercel})`);
+
+  cachedPromise = (async () => {
+    try {
+      const cleanedUri = cleanUri(uri);
+      const options = getVercelOptions();
       
-      if (isVercel) {
-        // For Vercel: Start with non-SSL since SSL consistently fails
+      console.log('📋 Connection options:', {
+        serverSelectionTimeoutMS: options.serverSelectionTimeoutMS,
+        tls: options.tls,
+        ssl: options.ssl,
+        maxPoolSize: options.maxPoolSize,
+      });
+
+      const client = new MongoClient(cleanedUri, options);
+      
+      // Connect with timeout
+      await client.connect();
+      
+      // Test the connection
+      await client.db().admin().ping();
+      
+      console.log('✅ MongoDB connection successful');
+      
+      cachedClient = client;
+      cachedPromise = null; // Clear the promise since we have the client
+      
+      return client;
+      
+    } catch (error) {
+      cachedPromise = null; // Reset on failure
+      console.error('❌ MongoDB connection failed:', error);
+      
+      // If SSL/TLS error on first attempt, try with SSL enabled
+      if (isVercel && error instanceof Error && 
+          (error.message.includes('SSL') || error.message.includes('TLS'))) {
+        
+        console.log('🔄 Retrying with SSL enabled...');
+        
         try {
-          console.log('� Vercel Attempt 1: Non-SSL connection (default for Vercel)');
-          const noSSLUri = createCleanUri(uri, true);
-          const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(false));
-          const connectedClient = await fallbackClient.connect();
-          console.log('✅ Non-SSL connection successful on Vercel');
-          return connectedClient;
-        } catch (noSSLError) {
-          const noSSLMessage = noSSLError instanceof Error ? noSSLError.message : 'Unknown non-SSL error';
-          console.log('❌ Non-SSL connection failed on Vercel:', noSSLMessage);
+          const optionsWithSSL = {
+            ...getVercelOptions(),
+            tls: true,
+            tlsAllowInvalidCertificates: true,
+            tlsAllowInvalidHostnames: true,
+          };
           
-          // Fallback: Try minimal configuration
-          try {
-            console.log('⚡ Vercel Attempt 2: Minimal configuration');
-            const baseUri = createCleanUri(uri, false);
-            const minimalClient = new MongoClient(baseUri, {
-              serverSelectionTimeoutMS: 3000,
-              connectTimeoutMS: 5000,
-              retryWrites: true,
-              appName: 'NextJSFullStackBlog',
-            });
-            const connectedClient = await minimalClient.connect();
-            console.log('✅ Minimal connection successful on Vercel');
-            return connectedClient;
-          } catch (minimalError) {
-            console.error('❌ All Vercel connection attempts failed');
-            throw noSSLError; // Throw the first error for debugging
-          }
-        }
-      } else {
-        // For non-Vercel production: Try SSL first
-        try {
-          console.log('� Non-Vercel Attempt 1: SSL connection');
-          const cleanUri = createCleanUri(uri, false);
-          const client = new MongoClient(cleanUri, getConnectionOptions(true));
-          const connectedClient = await client.connect();
-          console.log('✅ SSL connection successful');
-          return connectedClient;
+          const clientWithSSL = new MongoClient(uri, optionsWithSSL);
+          await clientWithSSL.connect();
+          await clientWithSSL.db().admin().ping();
+          
+          console.log('✅ MongoDB connection successful with SSL');
+          cachedClient = clientWithSSL;
+          return clientWithSSL;
+          
         } catch (sslError) {
-          const errorMessage = sslError instanceof Error ? sslError.message : 'Unknown SSL error';
-          console.log('❌ SSL connection failed:', errorMessage);
-          
-          // Second attempt: Try without SSL
-          try {
-            console.log('🔓 Non-Vercel Attempt 2: Non-SSL connection');
-            const noSSLUri = createCleanUri(uri, true);
-            const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(false));
-            const connectedClient = await fallbackClient.connect();
-            console.log('✅ Non-SSL connection successful');
-            return connectedClient;
-          } catch (fallbackError) {
-            const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : 'Unknown fallback error';
-            console.log('❌ Non-SSL connection failed:', fallbackMessage);
-            throw sslError; // Throw the original SSL error
-          }
+          console.error('❌ SSL retry also failed:', sslError);
+          throw error; // Throw original error
         }
       }
-    };
-
-    clientPromise = connectWithRetry().catch((error) => {
-      console.error('MongoDB connection completely failed:', error);
-      clientPromise = null; // Reset for retry
+      
       throw error;
-    });
-  }
+    }
+  })();
 
-  return clientPromise;
+  return cachedPromise;
 }
 
-// Helper function to connect to database and return both client and db
+// Main export function
+export default async function getClientPromise(): Promise<MongoClient> {
+  return connectToMongoDB();
+}
+
+// Helper function for database operations
 export async function connectToDatabase() {
   try {
-    const client = await getClientPromise();
-    const db = client.db();
+    const client = await connectToMongoDB();
+    const db = client.db('myapp'); // Use your database name
     return { client, db };
   } catch (error) {
-    if (error instanceof Error && error.message.includes('Database connection not available during build')) {
-      throw error;
-    }
+    console.error('Failed to connect to database:', error);
     
     if (error instanceof Error) {
-      if (error.message.includes('MongoServerSelectionError') || error.message.includes('SSL') || error.message.includes('TLS')) {
-        console.error('MongoDB SSL/TLS Connection Error:', error.message);
-        throw new Error('Failed to establish connection to MongoDB. Please check your connection settings.');
+      if (error.message.includes('Database connection not available during build')) {
+        throw error;
       }
+      
+      // Provide helpful error messages
       if (error.message.includes('authentication')) {
-        console.error('MongoDB Authentication Error:', error.message);
-        throw new Error('Failed to authenticate with MongoDB. Please check your credentials.');
+        throw new Error('Database authentication failed. Check your MongoDB credentials.');
+      }
+      
+      if (error.message.includes('network') || error.message.includes('timeout')) {
+        throw new Error('Database connection timeout. Check your network and MongoDB Atlas settings.');
       }
     }
     
-    console.error('MongoDB Connection Error:', error);
-    throw new Error('Failed to connect to database');
+    throw new Error(`Database connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
-
-export default getClientPromise;
