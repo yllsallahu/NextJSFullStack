@@ -1,5 +1,6 @@
-import clientPromise from "lib/mongodb";
-import { ObjectId, Document, WithId } from "mongodb";
+import clientPromise from '../../lib/mongodb';
+import { BlogDocument } from '../models/Blog';
+import { ObjectId } from 'mongodb';
 
 interface Comment {
   _id: ObjectId;
@@ -21,22 +22,19 @@ export interface BlogDocument {
   updatedAt: Date;
 }
 
-export async function createBlog(blog: Pick<BlogDocument, 'title' | 'content' | 'author' | 'image'>) {
+export async function createBlog(data: Omit<BlogDocument, '_id'>) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
-    const newBlog: BlogDocument = {
-      ...blog,
-      likes: [],
-      comments: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      description: ""
-    };
+    const result = await db.collection<BlogDocument>("blogs")
+      .insertOne({
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
     
-    const result = await db.collection<BlogDocument>("blogs").insertOne(newBlog);
-    return { ...newBlog, _id: result.insertedId };
+    return result;
   } catch (error) {
     console.error('Error in createBlog:', error);
     throw error;
@@ -45,11 +43,11 @@ export async function createBlog(blog: Pick<BlogDocument, 'title' | 'content' | 
 
 export async function getBlogs() {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     const blogs = await db.collection<BlogDocument>("blogs")
-      .find()
+      .find({})
       .sort({ createdAt: -1 })
       .toArray();
     
@@ -62,15 +60,11 @@ export async function getBlogs() {
 
 export async function getBlogById(id: string) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     const blog = await db.collection<BlogDocument>("blogs")
-      .findOne({ _id: new ObjectId(id) } as any);
-    
-    if (!blog) {
-      throw new Error('Blog not found');
-    }
+      .findOne({ _id: new ObjectId(id) });
     
     return blog;
   } catch (error) {
@@ -79,21 +73,21 @@ export async function getBlogById(id: string) {
   }
 }
 
-export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument, 'title' | 'content' | 'image'>> & { updatedAt: Date }) {
+export async function updateBlog(id: string, data: Partial<BlogDocument>) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
-    const result = await db.collection<BlogDocument>("blogs").updateOne(
-      { _id: new ObjectId(id) } as any,
-      { 
-        $set: updates
-      }
-    );
-    
-    if (result.matchedCount === 0) {
-      throw new Error('Blog not found');
-    }
+    const result = await db.collection<BlogDocument>("blogs")
+      .updateOne(
+        { _id: new ObjectId(id) },
+        { 
+          $set: {
+            ...data,
+            updatedAt: new Date()
+          }
+        }
+      );
     
     return result;
   } catch (error) {
@@ -104,16 +98,11 @@ export async function updateBlog(id: string, updates: Partial<Pick<BlogDocument,
 
 export async function deleteBlog(id: string) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
-    const result = await db.collection<BlogDocument>("blogs").deleteOne(
-      { _id: new ObjectId(id) } as any
-    );
-    
-    if (result.deletedCount === 0) {
-      throw new Error('Blog not found');
-    }
+    const result = await db.collection<BlogDocument>("blogs")
+      .deleteOne({ _id: new ObjectId(id) });
     
     return result;
   } catch (error) {
