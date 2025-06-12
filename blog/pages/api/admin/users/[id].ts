@@ -8,71 +8,70 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Check authentication
-  const token = await getToken({ req });
-  if (!token) {
-    return res.status(401).json({ error: 'Not authenticated' });
+  // Only allow GET and PUT methods
+  if (req.method !== 'GET' && req.method !== 'PUT') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
-
-  // Check if user is a superuser
-  const currentUser = await getUserById(token.id as string);
-  if (!currentUser?.isSuperUser) {
-    return res.status(403).json({ error: 'Not authorized' });
-  }
-
-  const { id } = req.query;
-  if (!id || Array.isArray(id)) {
-    return res.status(400).json({ error: 'Invalid user ID' });
-  }
-
-  const client = await clientPromise();
-  const db = client.db('myapp');
 
   try {
-    switch (req.method) {
-      case 'DELETE':
-        // Prevent self-deletion
-        if (id === token.id) {
-          return res.status(400).json({ error: 'Cannot delete your own account' });
-        }
+    const token = await getToken({ req });
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
 
-        const deleteResult = await db.collection('users').deleteOne({ 
-          _id: new ObjectId(id)
-        });
+    // Check if user is a superuser
+    const user = await getUserById(token.id as string);
+    if (!user?.isSuperUser) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
 
-        if (deleteResult.deletedCount === 0) {
+    const { id } = req.query;
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const client = await clientPromise;
+    const db = client.db('myapp');
+
+    try {
+      if (req.method === 'GET') {
+        // Get user by ID
+        const user = await db.collection('users').findOne(
+          { _id: new ObjectId(id) },
+          { projection: { password: 0 } }
+        );
+
+        if (!user) {
           return res.status(404).json({ error: 'User not found' });
         }
 
-        return res.status(200).json({ message: 'User deleted successfully' });
+        return res.status(200).json(user);
+      } else if (req.method === 'PUT') {
+        // Update user
+        const { name, email, isSuperUser } = req.body;
 
-      case 'PATCH':
-        const { name, email } = req.body;
-        if (!name && !email) {
-          return res.status(400).json({ error: 'No fields to update' });
-        }
-
-        const updateData: { name?: string; email?: string } = {};
+        const updateData: any = {};
         if (name) updateData.name = name;
         if (email) updateData.email = email;
+        if (typeof isSuperUser === 'boolean') updateData.isSuperUser = isSuperUser;
 
-        const updateResult = await db.collection('users').updateOne(
+        const result = await db.collection('users').updateOne(
           { _id: new ObjectId(id) },
           { $set: updateData }
         );
 
-        if (updateResult.matchedCount === 0) {
+        if (result.matchedCount === 0) {
           return res.status(404).json({ error: 'User not found' });
         }
 
         return res.status(200).json({ message: 'User updated successfully' });
-
-      default:
-        res.setHeader('Allow', ['DELETE', 'PATCH']);
-        return res.status(405).json({ error: `Method ${req.method} not allowed` });
+      }
+    } catch (error) {
+      console.error('Database operation error:', error);
+      return res.status(500).json({ error: 'Database operation failed' });
     }
   } catch (error) {
-    console.error('Error in user management:', error);
+    console.error('Error in user operation:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
