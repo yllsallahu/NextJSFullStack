@@ -78,7 +78,7 @@ export default function BlogsPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {blogs?.map((blog) => (
               <BlogCard
-                key={blog._id}
+                key={blog.id}
                 blog={blog}
                 onLike={handleLike}
                 onDelete={session?.user?.id === blog.author || session?.user?.isSuperUser ? handleDelete : undefined}

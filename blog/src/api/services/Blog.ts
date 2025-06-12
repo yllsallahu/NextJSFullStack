@@ -9,19 +9,6 @@ interface Comment {
   createdAt: Date;
 }
 
-export interface BlogDocument {
-  description: string; // Changed from ReactNode to string
-  _id?: ObjectId;
-  title: string;
-  content: string;
-  author: string;
-  image?: string | null;
-  likes: string[];
-  comments: Comment[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export async function createBlog(data: Omit<BlogDocument, '_id'>) {
   try {
     const client = await clientPromise;
@@ -113,10 +100,14 @@ export async function deleteBlog(id: string) {
 
 export async function likeBlog(blogId: string, userId: string) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     const blog = await getBlogById(blogId);
+    if (!blog) {
+      throw new Error('Blog not found');
+    }
+    
     const hasLiked = blog.likes.includes(userId);
     
     const result = await db.collection<BlogDocument>("blogs").updateOne(
@@ -135,6 +126,10 @@ export async function likeBlog(blogId: string, userId: string) {
     }
     
     const updatedBlog = await getBlogById(blogId);
+    if (!updatedBlog) {
+      throw new Error('Blog not found after update');
+    }
+    
     return { 
       success: true, 
       likes: updatedBlog.likes 
@@ -147,7 +142,7 @@ export async function likeBlog(blogId: string, userId: string) {
 
 export async function addComment(blogId: string, commentData: Pick<Comment, 'content' | 'author'>) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     const comment: Comment = {
@@ -177,7 +172,7 @@ export async function addComment(blogId: string, commentData: Pick<Comment, 'con
 
 export async function deleteComment(blogId: string, commentId: string) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     const result = await db.collection<BlogDocument>("blogs").updateOne(
@@ -205,7 +200,7 @@ export async function deleteComment(blogId: string, commentId: string) {
 
 export async function favoriteBlogs(userId: string, blogId: string) {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     // Check if the user has already favorited this blog
@@ -258,18 +253,56 @@ export async function getFavoriteBlogs(userId: string): Promise<BlogDocument[]> 
     
     // Get user's favorite blog IDs
     const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
-    if (!user || !user.favoriteBlogs) {
-      return [];
+    if (!user) {
+      throw new Error("User not found");
     }
     
-    // Get the actual blog posts
-    const blogs = await db.collection<BlogDocument>("blogs")
-      .find({ _id: { $in: user.favoriteBlogs.map((id: string) => new ObjectId(id)) } })
+    const favoriteBlogIds = user.favoriteBlogs || [];
+    
+    // Get the actual blog documents
+    const favoriteDocs = await db.collection<BlogDocument>("blogs")
+      .find({ _id: { $in: favoriteBlogIds.map((id: string) => new ObjectId(id)) } })
       .toArray();
     
-    return blogs;
+    return favoriteDocs;
   } catch (error) {
     console.error('Error in getFavoriteBlogs:', error);
+    throw error;
+  }
+}
+
+export async function toggleFavoriteBlog(userId: string, blogId: string): Promise<boolean> {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    // Get the user's current favorites
+    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    const favoriteBlogs = user.favoriteBlogs || [];
+    const isFavorite = favoriteBlogs.includes(blogId);
+    
+    // Toggle the favorite status
+    if (isFavorite) {
+      // Remove from favorites
+      await db.collection("users").updateOne(
+        { _id: new ObjectId(userId) },
+        { $pull: { favoriteBlogs: blogId } } as any
+      );
+    } else {
+      // Add to favorites
+      await db.collection("users").updateOne(
+        { _id: new ObjectId(userId) },
+        { $addToSet: { favoriteBlogs: blogId } } as any
+      );
+    }
+    
+    return !isFavorite; // Return true if now favorited, false if now unfavorited
+  } catch (error) {
+    console.error('Error in toggleFavoriteBlog:', error);
     throw error;
   }
 }

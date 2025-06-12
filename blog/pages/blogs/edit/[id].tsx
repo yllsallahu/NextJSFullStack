@@ -46,7 +46,7 @@ export default function EditBlogPage() {
         // If authorized, set the blog data
         setTitle(blog.title);
         setContent(blog.content);
-        setCurrentImageUrl(blog.image || null);
+        setCurrentImageUrl(blog.imageUrl || null);
         setIsLoading(false);
       } catch (err) {
         console.error('Error:', err);

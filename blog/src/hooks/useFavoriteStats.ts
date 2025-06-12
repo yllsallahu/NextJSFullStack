@@ -39,7 +39,7 @@ export function useFavoriteStats(): FavoriteStats & { isLoading: boolean } {
     // Deep analysis of favorites
     const analyze = () => {
       // Track recently removed favorites
-      const currentFavoriteIds = favorites.map(blog => blog._id || '').filter(Boolean);
+      const currentFavoriteIds = favorites.map(blog => blog.id || '').filter(Boolean);
       const removed = previousFavorites.filter(id => !currentFavoriteIds.includes(id));
       
       // Count favorites added today

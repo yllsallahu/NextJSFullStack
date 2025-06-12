@@ -98,7 +98,7 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
     if (onUpdate) onUpdate();
   };
   const handleLikeClick = async () => {
-    const result = await handleLikeInternal(blog._id as string);
+    const result = await handleLikeInternal(blog.id as string);
     if (result && !result.error) {
       setHasLiked(!hasLiked);
       setLikeCount((prev) => hasLiked ? prev - 1 : prev + 1);
@@ -112,24 +112,24 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
 
   const handleEditClick = () => {
     if (onEdit) {
-      onEdit(blog._id as string);
+      onEdit(blog.id as string);
     } else {
-      window.location.href = `/blogs/edit/${blog._id}`;
+      window.location.href = `/blogs/edit/${blog.id}`;
     }
     setShowDropdown(false);
   };
 
   const handleDeleteCommentClick = async (commentId: string) => {
-    await handleDeleteComment(blog._id as string, commentId);
+    await handleDeleteComment(blog.id as string, commentId);
     handleCommentAdded();
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      {blog.image && (
+      {blog.imageUrl && (
         <div className="relative w-full h-48">
           <Image 
-            src={blog.image} 
+            src={blog.imageUrl} 
             alt={blog.title}
             fill
             className="object-cover"
@@ -139,7 +139,7 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
       )}
       
       <div className="p-4">
-        <Link href={`/blogs/${blog._id}`}>
+        <Link href={`/blogs/${blog.id}`}>
           <h2 className="text-xl text-black font-bold mb-2 hover:text-indigo-600">
             {blog.title}
           </h2>
@@ -170,7 +170,7 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
                     </button>
                     <button
                       onClick={() => {
-                        handleDeleteClick(blog._id as string);
+                        handleDeleteClick(blog.id as string);
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                     >
@@ -219,7 +219,7 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
           
           {session && (
             <FavoriteButton 
-              blogId={blog._id as string} 
+              blogId={blog.id as string} 
               onToggleFavorite={onUpdate} 
             />
           )}
@@ -255,7 +255,7 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
               <p className="text-black text-sm">No comments yet.</p>
             )}
             
-            {session && <CommentForm blogId={blog._id as string} onCommentAdded={handleCommentAdded} />}
+            {session && <CommentForm blogId={blog.id as string} onCommentAdded={handleCommentAdded} />}
             
             {!session && (
               <p className="text-sm text-black mt-3">

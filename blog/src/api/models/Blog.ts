@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ObjectId } from 'mongodb';
 
 const CommentSchema = new mongoose.Schema({
   content: {
@@ -68,18 +69,38 @@ export interface Comment {
   createdAt?: Date;
 }
 
-export interface Blog {
-  description: string;
-  _id?: string;
+export interface BlogDocument {
+  _id?: ObjectId;
   title: string;
   content: string;
   author: string;
-  image?: string | null;
-  likes?: string[];
-  comments?: Comment[];
+  createdAt: Date;
+  updatedAt: Date;
   tags?: string[];
-  createdAt?: Date;
-  updatedAt?: Date;
+  imageUrl?: string;
+  summary?: string;
+  isPublished: boolean;
+  slug: string;
+  views?: number;
+  likes: string[];
+  comments?: any[];
+}
+
+export interface Blog {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  createdAt: Date;
+  updatedAt: Date;
+  tags: string[];
+  imageUrl?: string;
+  summary?: string;
+  isPublished: boolean;
+  slug: string;
+  views: number;
+  likes: string[];
+  comments: any[];
 }
 
 export default mongoose.models.Blog || mongoose.model('Blog', BlogSchema);

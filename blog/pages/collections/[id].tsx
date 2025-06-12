@@ -2,12 +2,12 @@ import { GetServerSideProps } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../api/auth/[...nextauth]';
 import Head from 'next/head';
-import { BlogDocument } from '@/api/services/Blog';
+import { BlogDocument } from '../../src/api/models/Blog';
 import { useState } from 'react';
 import MainLayout from '../../src/components/MainLayout';
 import { Blog } from '../../src/api/models/Blog';
 import BlogCard from '../../src/components/shared/BlogCard';
-import { connectToDatabase } from '../../src/lib/mongodb';
+import clientPromise from '../../src/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { convertBlogDocumentsToBlog } from '../../src/lib/adapters';
 import { FavoritesProvider } from '../../src/lib/contexts/FavoritesContext';
@@ -110,7 +110,7 @@ export default function CollectionPage({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {blogs.map((blog) => (
                 <BlogCard 
-                  key={blog._id} 
+                  key={blog.id} 
                   blog={blog}
                   showAuthor={true} 
                   showFavoriteButton={isOwner}
@@ -171,8 +171,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     // Connect to the database
     let db;
     try {
-      const connection = await connectToDatabase();
-      db = connection.db;
+      const client = await clientPromise;
+      db = client.db("myapp");
     } catch (dbError) {
       // If database connection fails during build, return a default response
       console.log('Database connection failed, likely during build:', dbError);
@@ -249,7 +249,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     }
     
     const initialFavorites = convertBlogDocumentsToBlog(favorites);
-    const initialFavoriteIds = initialFavorites.map(blog => blog._id || '');
+    const initialFavoriteIds = initialFavorites.map(blog => blog.id || '');
       return {
       props: {
         collection: JSON.parse(JSON.stringify(collection)),

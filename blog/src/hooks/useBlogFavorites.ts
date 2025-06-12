@@ -25,9 +25,9 @@ export function useBlogFavorites({ onUpdate, initialBlog }: UseBlogFavoritesProp
   
   // Check if current active blog is a favorite
   const isActiveBlogFavorited = useMemo(() => {
-    if (!activeBlog?._id) return false;
-    return userFavorites.isFavorited(activeBlog._id);
-  }, [activeBlog?._id, userFavorites.isFavorited]);
+    if (!activeBlog?.id) return false;
+    return userFavorites.isFavorited(activeBlog.id);
+  }, [activeBlog?.id, userFavorites.isFavorited]);
   
   // Set the active blog
   const setCurrentBlog = useCallback((blog: Blog | null) => {
@@ -36,31 +36,31 @@ export function useBlogFavorites({ onUpdate, initialBlog }: UseBlogFavoritesProp
   
   // Toggle favorite status for active blog
   const toggleActiveBlogFavorite = useCallback(async () => {
-    if (!activeBlog?._id) return;
-    await userFavorites.toggleFavoriteStatus(activeBlog._id);
+    if (!activeBlog?.id) return;
+    await userFavorites.toggleFavoriteStatus(activeBlog.id);
     if (onUpdate) onUpdate();
-  }, [activeBlog?._id, userFavorites, onUpdate]);
+  }, [activeBlog?.id, userFavorites, onUpdate]);
   
   // Delete active blog with confirmation
   const deleteActiveBlog = useCallback(async () => {
-    if (!activeBlog?._id) return;
-    const result = await blogActions.handleDelete(activeBlog._id);
+    if (!activeBlog?.id) return;
+    const result = await blogActions.handleDelete(activeBlog.id);
     return result;
-  }, [activeBlog?._id, blogActions]);
+  }, [activeBlog?.id, blogActions]);
   
   // Add comment to active blog
   const commentOnActiveBlog = useCallback(async (content: string) => {
-    if (!activeBlog?._id || !content.trim()) return;
-    const result = await blogActions.handleAddComment(activeBlog._id, content);
+    if (!activeBlog?.id || !content.trim()) return;
+    const result = await blogActions.handleAddComment(activeBlog.id, content);
     return result;
-  }, [activeBlog?._id, blogActions]);
+  }, [activeBlog?.id, blogActions]);
   
   // Toggle like on active blog
   const toggleActiveBlogLike = useCallback(async () => {
-    if (!activeBlog?._id) return;
-    const result = await blogActions.handleLike(activeBlog._id);
+    if (!activeBlog?.id) return;
+    const result = await blogActions.handleLike(activeBlog.id);
     return result;
-  }, [activeBlog?._id, blogActions]);
+  }, [activeBlog?.id, blogActions]);
   
   // Get related favorites (by same author)
   const getRelatedFavorites = useCallback(() => {

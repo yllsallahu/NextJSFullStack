@@ -162,10 +162,10 @@ export default function BlogDetail() {
               <p>{formatDate(blog.createdAt)}</p>
             </div>
 
-            {blog.image && (
+            {blog.imageUrl && (
               <div className="relative w-full h-96 mb-8">
                 <Image 
-                  src={blog.image} 
+                  src={blog.imageUrl} 
                   alt={blog.title}
                   fill
                   className="object-cover rounded-lg"

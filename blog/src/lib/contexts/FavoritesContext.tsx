@@ -95,7 +95,7 @@ export const FavoritesProvider = ({
       const blogsList = convertBlogDocumentsToBlog(data.favorites || []);
       
       setFavorites(blogsList);
-      setFavoriteIds(blogsList.map(blog => blog._id || ''));
+      setFavoriteIds(blogsList.map(blog => blog.id || ''));
     } catch (error) {
       console.error('Error fetching favorites:', error);
       
@@ -161,7 +161,7 @@ export const FavoritesProvider = ({
       // Update local state optimistically
       if (isFavorite(blogId)) {
         setFavoriteIds(prevIds => prevIds.filter(id => id !== blogId));
-        setFavorites(prevFavorites => prevFavorites.filter(blog => blog._id !== blogId));
+        setFavorites(prevFavorites => prevFavorites.filter(blog => blog.id !== blogId));
       } else {
         // If adding to favorites, we'll refresh the whole list to get the full blog data
         await refreshFavorites();

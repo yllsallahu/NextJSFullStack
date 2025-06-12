@@ -162,7 +162,7 @@ const FavoritesAnalytics: React.FC<FavoritesAnalyticsProps> = ({ className = '' 
           <h3 className="text-lg font-medium mb-3">Most Popular Favorited Blog</h3>
           <div className="bg-gray-50 p-4 rounded-lg">
             <Link 
-              href={`/blogs/${mostFavorited._id}`}
+              href={`/blogs/${mostFavorited.id}`}
               className="text-lg font-medium text-blue-700 hover:underline"
             >
               {mostFavorited.title}

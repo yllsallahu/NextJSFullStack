@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { method } = req;
   
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db();
     const userId = session.user.id;
     

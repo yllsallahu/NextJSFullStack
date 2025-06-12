@@ -36,7 +36,7 @@ function FavoritesContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {favorites.map(blog => (
               <BlogCard 
-                key={blog._id} 
+                key={blog.id} 
                 blog={blog} 
                 onUpdate={refreshFavorites}
               />
@@ -130,7 +130,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     
     // Convert BlogDocument[] to Blog[]
     const favorites = convertBlogDocumentsToBlog(blogDocuments);
-    const favoriteIds = favorites.map(blog => blog._id || '');
+    const favoriteIds = favorites.map(blog => blog.id || '');
 
     return {
       props: {

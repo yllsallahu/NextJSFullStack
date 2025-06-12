@@ -165,12 +165,12 @@ const FavoritesOverview: React.FC<FavoritesOverviewProps> = ({ className = '' })
       <div className="space-y-4">
         {filteredFavorites.length > 0 ? (
           filteredFavorites.map(blog => (
-            <div key={blog._id} className="flex items-start border-b pb-4 last:border-b-0 group">
+                          <div key={blog.id} className="flex items-start border-b pb-4 last:border-b-0 group">
               {/* Blog image thumbnail */}
-              {blog.image && (
+              {blog.imageUrl && (
                 <div className="relative w-16 h-16 flex-shrink-0 mr-3">
                   <Image 
-                    src={blog.image} 
+                    src={blog.imageUrl} 
                     alt={blog.title}
                     fill
                     className="object-cover rounded"
@@ -181,13 +181,13 @@ const FavoritesOverview: React.FC<FavoritesOverviewProps> = ({ className = '' })
               <div className="flex-grow min-w-0">
                 <div className="flex items-start justify-between">
                   <Link 
-                    href={`/blogs/${blog._id}`} 
+                    href={`/blogs/${blog.id}`} 
                     className="font-medium text-gray-900 hover:text-blue-600 transition-colors truncate mr-2"
                   >
                     {blog.title}
                   </Link>
                   <button
-                    onClick={() => handleRemoveFromFavorites(blog._id || '')}
+                    onClick={() => handleRemoveFromFavorites(blog.id || '')}
                     className="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                     aria-label="Remove from favorites"
                   >

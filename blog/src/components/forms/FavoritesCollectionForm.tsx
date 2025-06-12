@@ -228,21 +228,21 @@ const FavoritesCollectionForm: React.FC<FavoritesCollectionFormProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 max-h-80 overflow-y-auto p-2">
               {favorites.map((blog) => (
-                <div key={blog._id} className="relative flex items-start">
+                <div key={blog.id} className="relative flex items-start">
                   <div className="flex h-6 items-center">
                     <input
-                      id={`blog-${blog._id}`}
+                      id={`blog-${blog.id}`}
                       type="checkbox"
-                      value={blog._id}
+                      value={blog.id}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
                       {...register('selectedBlogs')}
                     />
                   </div>
                   <div className="ml-3 text-sm leading-6">
-                    <label htmlFor={`blog-${blog._id}`} className="font-medium text-gray-900">
+                    <label htmlFor={`blog-${blog.id}`} className="font-medium text-gray-900">
                       {blog.title}
                     </label>
-                    <p className="text-gray-500 truncate max-w-xs">{blog.description}</p>
+                    <p className="text-gray-500 truncate max-w-xs">{blog.summary}</p>
                   </div>
                 </div>
               ))}

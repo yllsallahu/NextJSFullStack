@@ -1,5 +1,5 @@
 import { Blog } from "../api/models/Blog";
-import { BlogDocument } from "../api/services/Blog";
+import { BlogDocument } from "../api/models/Blog";
 import { ObjectId } from "mongodb";
 
 /**
@@ -7,21 +7,20 @@ import { ObjectId } from "mongodb";
  */
 export const convertBlogDocumentToBlog = (blogDoc: BlogDocument): Blog => {
   return {
-    _id: blogDoc._id?.toString(),
+    id: blogDoc._id?.toString() || '',
     title: blogDoc.title,
     content: blogDoc.content,
-    description: blogDoc.description || "", // Ensure description is never undefined
     author: blogDoc.author,
-    image: blogDoc.image,
-    likes: blogDoc.likes,
-    comments: blogDoc.comments?.map(comment => ({
-      _id: comment._id.toString(),
-      content: comment.content,
-      author: comment.author,
-      createdAt: comment.createdAt
-    })) || [],
     createdAt: blogDoc.createdAt,
-    updatedAt: blogDoc.updatedAt
+    updatedAt: blogDoc.updatedAt,
+    tags: blogDoc.tags || [],
+    imageUrl: blogDoc.imageUrl,
+    summary: blogDoc.summary,
+    isPublished: blogDoc.isPublished,
+    slug: blogDoc.slug,
+    views: blogDoc.views || 0,
+    likes: blogDoc.likes || [],
+    comments: blogDoc.comments || []
   };
 };
 

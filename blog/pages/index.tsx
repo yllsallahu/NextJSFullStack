@@ -178,12 +178,12 @@ export default function HomePage() {
                 <div className="w-full mx-auto carousel-container">
                   <Slider {...sliderSettings}>
                     {carouselBlogs.map((blog) => (
-                      <div key={blog._id} className="px-4">
+                      <div key={blog.id} className="px-4">
                         <div className="carousel-card bg-white rounded-lg shadow-lg overflow-hidden h-full transition-all duration-300 hover:shadow-xl">
-                          {blog.image && (
+                          {blog.imageUrl && (
                             <div className="relative w-full h-100">
                               <img
-                                src={blog.image}
+                                src={blog.imageUrl}
                                 alt={blog.title}
                                 className="object-cover w-full h-full"
                               />
@@ -220,7 +220,7 @@ export default function HomePage() {
                                 </span>
                               </div>
                               <Link
-                                href={`/blogs/${blog._id}`}
+                                href={`/blogs/${blog.id}`}
                                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
                               >
                                 Lexo më shumë
@@ -262,7 +262,7 @@ export default function HomePage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredBlogs.map((blog: Blog) => (                <BlogCard
-                  key={blog._id}
+                  key={blog.id}
                   blog={blog}
                   onLike={handleLike}
                   onEdit={session?.user?.id === blog.author || session?.user?.isSuperUser ? handleEdit : undefined}

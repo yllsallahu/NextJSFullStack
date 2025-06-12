@@ -49,12 +49,12 @@ const FavoritesStats: React.FC<FavoritesStatsProps> = ({ className = '' }) => {
           {mostRecentFavorite && (
             <div className="border-t pt-3">
               <p className="text-sm text-gray-500 mb-2">Most recent favorite:</p>
-              <Link href={`/blogs/${mostRecentFavorite._id}`} className="group">
+              <Link href={`/blogs/${mostRecentFavorite.id}`} className="group">
                 <div className="flex items-center space-x-3">
-                  {mostRecentFavorite.image && (
+                  {mostRecentFavorite.imageUrl && (
                     <div className="relative w-16 h-16 flex-shrink-0">
                       <Image 
-                        src={mostRecentFavorite.image}
+                        src={mostRecentFavorite.imageUrl}
                         alt={mostRecentFavorite.title}
                         fill
                         className="object-cover rounded"
@@ -79,8 +79,8 @@ const FavoritesStats: React.FC<FavoritesStatsProps> = ({ className = '' }) => {
               <p className="text-sm text-gray-500 mb-2">Other recent favorites:</p>
               <ul className="space-y-2">
                 {recentFavorites.slice(1).map(blog => (
-                  <li key={blog._id} className="text-sm">
-                    <Link href={`/blogs/${blog._id}`} className="text-gray-700 hover:text-blue-600 transition-colors">
+                              <li key={blog.id} className="text-sm">
+              <Link href={`/blogs/${blog.id}`} className="text-gray-700 hover:text-blue-600 transition-colors">
                       {blog.title}
                     </Link>
                   </li>

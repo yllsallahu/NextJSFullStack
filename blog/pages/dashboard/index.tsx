@@ -125,7 +125,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     
     // Convert BlogDocument[] to Blog[]
     const favorites = convertBlogDocumentsToBlog(blogDocuments);
-    const favoriteIds = favorites.map(blog => blog._id || '');
+    const favoriteIds = favorites.map(blog => blog.id || '');
 
     return {
       props: {

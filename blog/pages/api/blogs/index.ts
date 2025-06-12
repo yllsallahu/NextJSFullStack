@@ -42,12 +42,19 @@ export default async function handler(
       }
 
       const blogData = {
-        title,
-        content,
-        author: user._id.toString(), // Convert ObjectId to string
-        image: image || null, // Add image field
+        title: req.body.title,
+        content: req.body.content,
+        author: token.id as string,
+        imageUrl: req.body.image,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        isPublished: true,
+        slug: req.body.title.toLowerCase().replace(/\s+/g, '-'),
+        tags: req.body.tags || [],
+        summary: req.body.summary || req.body.content.substring(0, 150) + '...',
+        views: 0,
+        likes: [],
+        comments: []
       };
 
       const result = await createBlog(blogData);

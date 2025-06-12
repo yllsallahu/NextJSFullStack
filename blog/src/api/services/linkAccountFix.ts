@@ -10,7 +10,7 @@ import { ObjectId } from "mongodb";
  */
 export async function linkOAuthAccount(email: string, providerId: string, providerType: string): Promise<boolean> {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     console.log(`🔗 Attempting to link account for ${email} with provider ${providerType}`);
@@ -98,7 +98,7 @@ export async function linkOAuthAccount(email: string, providerId: string, provid
 // Add a function to check if an email already exists with credentials
 export async function hasCredentialsAccount(email: string): Promise<boolean> {
   try {
-    const client = await clientPromise();
+    const client = await clientPromise;
     const db = client.db("myapp");
     
     const user = await db.collection("users").findOne({ 

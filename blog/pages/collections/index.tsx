@@ -7,10 +7,10 @@ import MainLayout from '../../src/components/MainLayout';
 import FavoritesCollectionForm from '../../src/components/forms/FavoritesCollectionForm';
 import Link from 'next/link';
 import { Blog } from '../../src/api/models/Blog';
-import { connectToDatabase } from '../../src/lib/mongodb';
+import clientPromise from '../../src/lib/mongodb';
 import { convertBlogDocumentsToBlog } from '../../src/lib/adapters';
 import { FavoritesProvider } from '../../src/lib/contexts/FavoritesContext';
-import { BlogDocument } from '../../src/api/services/Blog'; // Import BlogDocument
+import { BlogDocument } from '../../src/api/models/Blog'; // Import BlogDocument
 
 interface Collection {
   _id: string;
@@ -251,11 +251,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   };
 
   try {
-    // Connect to the database using connectToDatabase helper
+    // Connect to the database using clientPromise
     let db;
     try {
-      const connection = await connectToDatabase();
-      db = connection.db;
+      const client = await clientPromise;
+      db = client.db("myapp");
     } catch (dbError) {
       // If database connection fails during build, return empty data
       console.log('Database connection failed, likely during build:', dbError);
@@ -284,7 +284,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       .toArray() as BlogDocument[]; // Cast to BlogDocument[]
     
     const initialFavorites = convertBlogDocumentsToBlog(favorites);
-    const initialFavoriteIds = initialFavorites.map(blog => blog._id || '');
+    const initialFavoriteIds = initialFavorites.map(blog => blog.id || '');
     
     return {
       props: {
