@@ -116,27 +116,38 @@ function getClientPromise(): Promise<MongoClient> {
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
-    // Production mode with aggressive Vercel SSL bypass
+    // Production mode with smart retry logic
     const connectWithRetry = async (): Promise<MongoClient> => {
       const isVercel = process.env.VERCEL === '1';
       console.log(`🔌 MongoDB connection attempt (Vercel: ${isVercel})`);
       
-      if (isVercel) {
-        // For Vercel: Start with non-SSL since SSL consistently fails
+      // First attempt: Try with SSL enabled
+      try {
+        console.log('🔐 Attempt 1: SSL connection');
+        const cleanUri = createCleanUri(uri, false);
+        const client = new MongoClient(cleanUri, getConnectionOptions(true));
+        const connectedClient = await client.connect();
+        console.log('✅ SSL connection successful');
+        return connectedClient;
+      } catch (sslError) {
+        const errorMessage = sslError instanceof Error ? sslError.message : 'Unknown SSL error';
+        console.log('❌ SSL connection failed:', errorMessage);
+        
+        // Second attempt: Try without SSL
         try {
-          console.log('� Vercel Attempt 1: Non-SSL connection (default for Vercel)');
+          console.log('🔓 Attempt 2: Non-SSL connection');
           const noSSLUri = createCleanUri(uri, true);
           const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(false));
           const connectedClient = await fallbackClient.connect();
-          console.log('✅ Non-SSL connection successful on Vercel');
+          console.log('✅ Non-SSL connection successful');
           return connectedClient;
-        } catch (noSSLError) {
-          const noSSLMessage = noSSLError instanceof Error ? noSSLError.message : 'Unknown non-SSL error';
-          console.log('❌ Non-SSL connection failed on Vercel:', noSSLMessage);
+        } catch (fallbackError) {
+          const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : 'Unknown fallback error';
+          console.log('❌ Non-SSL connection failed:', fallbackMessage);
           
-          // Fallback: Try minimal configuration
+          // Final attempt: Minimal configuration
           try {
-            console.log('⚡ Vercel Attempt 2: Minimal configuration');
+            console.log('⚡ Attempt 3: Minimal configuration');
             const baseUri = createCleanUri(uri, false);
             const minimalClient = new MongoClient(baseUri, {
               serverSelectionTimeoutMS: 3000,
@@ -145,38 +156,11 @@ function getClientPromise(): Promise<MongoClient> {
               appName: 'NextJSFullStackBlog',
             });
             const connectedClient = await minimalClient.connect();
-            console.log('✅ Minimal connection successful on Vercel');
+            console.log('✅ Minimal connection successful');
             return connectedClient;
           } catch (minimalError) {
-            console.error('❌ All Vercel connection attempts failed');
-            throw noSSLError; // Throw the first error for debugging
-          }
-        }
-      } else {
-        // For non-Vercel production: Try SSL first
-        try {
-          console.log('� Non-Vercel Attempt 1: SSL connection');
-          const cleanUri = createCleanUri(uri, false);
-          const client = new MongoClient(cleanUri, getConnectionOptions(true));
-          const connectedClient = await client.connect();
-          console.log('✅ SSL connection successful');
-          return connectedClient;
-        } catch (sslError) {
-          const errorMessage = sslError instanceof Error ? sslError.message : 'Unknown SSL error';
-          console.log('❌ SSL connection failed:', errorMessage);
-          
-          // Second attempt: Try without SSL
-          try {
-            console.log('🔓 Non-Vercel Attempt 2: Non-SSL connection');
-            const noSSLUri = createCleanUri(uri, true);
-            const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(false));
-            const connectedClient = await fallbackClient.connect();
-            console.log('✅ Non-SSL connection successful');
-            return connectedClient;
-          } catch (fallbackError) {
-            const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : 'Unknown fallback error';
-            console.log('❌ Non-SSL connection failed:', fallbackMessage);
-            throw sslError; // Throw the original SSL error
+            console.error('❌ All connection attempts failed');
+            throw sslError; // Throw the first error for debugging
           }
         }
       }
