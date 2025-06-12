@@ -1,10 +1,15 @@
 // pages/api/test-connection.ts
 import type { NextApiRequest, NextApiResponse } from "next";
+import clientPromise from '../../src/lib/mongodb';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
     console.log("🔍 Testing connection - Step 1: Environment check");
     
@@ -28,14 +33,14 @@ export default async function handler(
     console.log("🔍 Testing connection - Step 2: Import MongoDB client");
     
     // Try to import the MongoDB client
-    const clientPromise = require("../../src/lib/mongodb").default;
+    console.log("Attempting to connect to MongoDB...");
+    const client = await clientPromise();
     console.log("✅ MongoDB client imported successfully");
     
     console.log("🔍 Testing connection - Step 3: Call client function");
     
     // Try to get the client
-    const client = await clientPromise();
-    console.log("✅ MongoDB client created successfully");
+    console.log("Database selected successfully");
     
     console.log("🔍 Testing connection - Step 4: Connect to database");
     
@@ -46,13 +51,14 @@ export default async function handler(
     console.log("🔍 Testing connection - Step 5: Ping database");
     
     // Try to ping the database
-    const pingResult = await db.admin().ping();
-    console.log("✅ Database ping successful:", pingResult);
+    await db.command({ ping: 1 });
+    console.log("✅ Database ping successful");
     
     return res.status(200).json({
       success: true,
-      message: "Database connection successful",
-      ping: pingResult,
+      message: "Successfully connected to MongoDB",
+      database: "myapp",
+      cluster: "FinalNextJs",
       environment: {
         hasMongoURI,
         hasSecret,
@@ -65,9 +71,9 @@ export default async function handler(
     console.error("❌ Connection test failed:", error);
     
     return res.status(500).json({
-      error: "Database connection test failed",
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      details: error instanceof Error ? error.stack : undefined,
       environment: {
         hasMongoURI: !!process.env.MONGODB_URI,
         hasSecret: !!process.env.NEXTAUTH_SECRET,

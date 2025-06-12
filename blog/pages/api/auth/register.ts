@@ -21,6 +21,7 @@ export default async function handler(
       });
     }
 
+    console.log("Attempting to check for existing user...");
     // Check if user exists
     const existingUser = await getUser(email);
     if (existingUser) {
@@ -29,9 +30,11 @@ export default async function handler(
       });
     }
 
+    console.log("Hashing password...");
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    console.log("Creating new user...");
     // Create user
     const result = await createUser({
       name,
@@ -41,6 +44,7 @@ export default async function handler(
       createdAt: new Date()
     });
 
+    console.log("User created successfully");
     // Return success but don't include password
     return res.status(201).json({
       success: true,
@@ -52,7 +56,11 @@ export default async function handler(
     });
 
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error("Registration error details:", {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     
     // If this is a database connection error, provide a more helpful message
     if (error instanceof Error && error.message.includes('Database connection not available during build')) {
@@ -72,7 +80,8 @@ export default async function handler(
     }
     
     return res.status(500).json({ 
-      error: "Gabim gjatë regjistrimit të përdoruesit" 
+      error: "Gabim gjatë regjistrimit të përdoruesit",
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }
