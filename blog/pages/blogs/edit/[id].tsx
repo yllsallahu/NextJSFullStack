@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
@@ -15,9 +15,7 @@ export default function EditBlogPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageUrl, setImageUrl] = useState<string>('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +45,7 @@ export default function EditBlogPage() {
         setTitle(blog.title);
         setContent(blog.content);
         setCurrentImageUrl(blog.imageUrl || null);
+        setImageUrl(blog.imageUrl || '');
         setIsLoading(false);
       } catch (err) {
         console.error('Error:', err);
@@ -58,56 +57,13 @@ export default function EditBlogPage() {
     fetchBlogAndCheckAuth();
   }, [blogId, router, session, status]);
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
-      setPreviewUrl(currentImageUrl);
-      setImageFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Image size should not exceed 10MB');
-      setPreviewUrl(currentImageUrl);
-      setImageFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    setImageFile(file);
-    setError('');
-    
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPreviewUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setImageUrl(url);
+    setError(''); // Clear previous errors
   };
 
-  const uploadImage = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to upload image');
-    }
-    
-    const data = await response.json();
-    return data.imageUrl;
-  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,15 +77,7 @@ export default function EditBlogPage() {
     setError('');
 
     try {
-      let imageUrl = currentImageUrl;
-      
-      if (imageFile) {
-        // Upload new image
-        imageUrl = await uploadImage(imageFile);
-      } else if (previewUrl === null && currentImageUrl !== null) {
-        // Image was removed
-        imageUrl = null;
-      }
+      const finalImageUrl = imageUrl || null;
 
       const response = await fetch(`/api/blogs/${blogId}`, {
         method: 'PATCH',
@@ -137,7 +85,7 @@ export default function EditBlogPage() {
         body: JSON.stringify({ 
           title, 
           content,
-          image: imageUrl 
+          image: finalImageUrl 
         }),
       });
 
@@ -241,48 +189,29 @@ export default function EditBlogPage() {
               </div>
 
               <div className="mb-6">
-                <label className="block text-gray-700 font-medium mb-2">
-                  Featured Image
+                <label htmlFor="imageUrl" className="block text-gray-700 font-medium mb-2">
+                  Featured Image URL (Optional)
                 </label>
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    ref={fileInputRef}
-                    className="hidden"
-                    disabled={isSubmitting}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                    disabled={isSubmitting}
-                  >
-                    {previewUrl ? 'Change Image' : 'Select Image'}
-                  </button>
-                  {previewUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPreviewUrl(null);
-                        setImageFile(null);
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                      className="text-red-500 hover:text-red-700"
-                      disabled={isSubmitting}
-                    >
-                      Remove Image
-                    </button>
-                  )}
-                </div>
-                {previewUrl && (
+                <input
+                  type="url"
+                  id="imageUrl"
+                  value={imageUrl}
+                  onChange={handleImageUrlChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com/image.jpg"
+                  disabled={isSubmitting}
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Enter a direct URL to an image. File uploads are currently disabled in production.
+                </p>
+                {imageUrl && (
                   <div className="mt-4 relative w-full h-48">
                     <Image
-                      src={previewUrl}
+                      src={imageUrl}
                       alt="Preview"
                       fill
                       className="object-cover rounded-md"
+                      onError={() => setError('Invalid image URL')}
                     />
                   </div>
                 )}
