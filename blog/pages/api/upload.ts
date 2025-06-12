@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { IncomingForm } from 'formidable';
 import { promises as fs } from 'fs';
-import path from 'path';
 import { getToken } from 'next-auth/jwt';
 import { getUserById } from 'api/services/User';
+import { put } from '@vercel/blob';
 
 // Disable the default body parser to allow formidable to parse the request
 export const config = {
@@ -33,19 +33,11 @@ export default async function handler(
   }
 
   try {
-    // Create uploads directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public/uploads');
-    try {
-      await fs.access(uploadDir);
-    } catch {
-      await fs.mkdir(uploadDir, { recursive: true });
-    }
-
-    // Parse the incoming form data
+    // Parse the incoming form data - use system temp directory, not custom uploadDir
     const form = new IncomingForm({
-      uploadDir,
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB max file size
+      // Don't specify uploadDir to avoid filesystem writes to public/uploads
     });
 
     const { fields, files } = await new Promise<{ fields: any; files: any }>((resolve, reject) => {
@@ -70,30 +62,31 @@ export default async function handler(
       return res.status(500).json({ error: 'Server file processing error: Incomplete file data.' });
     }
     
+    // Read the file from the temporary location
+    const fileBuffer = await fs.readFile(actualFile.filepath);
+    
     // Determine the file extension
     let ext = '';
     // Prioritize newFilename as it's what formidable uses on disk and respects keepExtensions.
     if (actualFile.newFilename && typeof actualFile.newFilename === 'string') {
-        ext = path.extname(actualFile.newFilename);
+        ext = actualFile.newFilename.split('.').pop() || '';
     } 
     // Fallback to originalFilename if newFilename didn't yield an extension or was missing.
     else if (actualFile.originalFilename && typeof actualFile.originalFilename === 'string') {
-        ext = path.extname(actualFile.originalFilename);
+        ext = actualFile.originalFilename.split('.').pop() || '';
     }
-    // If ext is still '', the file might genuinely have no extension. path.extname('') is ''.
 
     const timestamp = Date.now();
     // filename will be like '1678886400000.jpg' or '1678886400000' if no ext
-    const filename = `${timestamp}${ext}`; 
+    const filename = ext ? `${timestamp}.${ext}` : `${timestamp}`; 
     
-    const finalPath = path.join(uploadDir, filename);
+    // Upload to Vercel Blob
+    const blob = await put(filename, fileBuffer, {
+      access: 'public',
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
     
-    // fs.rename requires actualFile.filepath to be the correct path to the temp file
-    await fs.rename(actualFile.filepath, finalPath);
-    
-    const imageUrl = `/uploads/${filename}`;
-
-    return res.status(200).json({ imageUrl });
+    return res.status(200).json({ imageUrl: blob.url });
   } catch (error: any) {
     console.error('Error uploading image:', error); // Log the full error object
     const message = error.message || 'Failed to upload image';
