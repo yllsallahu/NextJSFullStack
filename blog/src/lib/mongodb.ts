@@ -3,36 +3,76 @@ import { MongoClient } from 'mongodb';
 // Allow build to continue without MongoDB URI 
 const uri = process.env.MONGODB_URI;
 
-// Check if URI already contains ssl=false to avoid conflicts
-const uriHasSSLDisabled = uri?.includes('ssl=false') || uri?.includes('tls=false') || false;
-
-// MongoDB connection options that respect URI SSL settings
-const getConnectionOptions = () => {
+// Clean connection options for Vercel
+const getConnectionOptions = (useSSL = true) => {
   const isVercel = process.env.VERCEL === '1';
   
-  // Base options without any SSL/TLS settings
-  const baseOptions = {
-    serverSelectionTimeoutMS: isVercel ? 5000 : 10000,
-    connectTimeoutMS: isVercel ? 8000 : 10000,
-    socketTimeoutMS: isVercel ? 30000 : 45000,
+  if (isVercel) {
+    // Vercel-specific settings
+    if (useSSL) {
+      return {
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 8000,
+        socketTimeoutMS: 30000,
+        retryWrites: true,
+        appName: 'NextJSFullStackBlog',
+        // SSL enabled with permissive settings for Vercel
+        tls: true,
+        tlsAllowInvalidCertificates: true,
+        tlsAllowInvalidHostnames: true,
+      };
+    } else {
+      return {
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 8000,
+        socketTimeoutMS: 30000,
+        retryWrites: true,
+        appName: 'NextJSFullStackBlog',
+        // SSL completely disabled
+        tls: false,
+        ssl: false,
+      };
+    }
+  }
+  
+  // Local development - standard settings
+  return {
+    serverSelectionTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 10000,
+    maxPoolSize: 10,
+    minPoolSize: 5,
+    maxIdleTimeMS: 30000,
     retryWrites: true,
     appName: 'NextJSFullStackBlog',
-  };
-
-  // If URI explicitly disables SSL, don't add any SSL/TLS options
-  if (uriHasSSLDisabled) {
-    console.log('� Using non-SSL connection (SSL disabled in URI)');
-    return baseOptions;
-  }
-
-  // Only add SSL options if URI doesn't disable SSL
-  console.log('🔐 Using SSL connection (SSL enabled)');
-  return {
-    ...baseOptions,
     tls: true,
-    tlsAllowInvalidCertificates: isVercel, // More permissive on Vercel
-    tlsAllowInvalidHostnames: isVercel,
+    tlsAllowInvalidCertificates: false,
+    tlsAllowInvalidHostnames: false,
   };
+};
+
+// Create clean URI without SSL conflicts
+const createCleanUri = (originalUri: string, forceNoSSL = false): string => {
+  if (!originalUri) return originalUri;
+  
+  try {
+    const url = new URL(originalUri);
+    
+    // Remove all SSL/TLS parameters to avoid conflicts
+    url.searchParams.delete('ssl');
+    url.searchParams.delete('tls'); 
+    url.searchParams.delete('tlsAllowInvalidCertificates');
+    url.searchParams.delete('tlsAllowInvalidHostnames');
+    
+    if (forceNoSSL) {
+      url.searchParams.set('ssl', 'false');
+    }
+    
+    return url.toString();
+  } catch (error) {
+    console.error('Failed to clean URI:', error);
+    return originalUri;
+  }
 };
 
 let clientPromise: Promise<MongoClient> | null = null;
@@ -43,18 +83,14 @@ function getClientPromise(): Promise<MongoClient> {
     return clientPromise;
   }
 
-  // Improved build-time detection for Vercel and other environments
+  // Build-time detection for Vercel and other environments
   const isBuildTime = typeof window === 'undefined' && (
-    // During Vercel build process (VERCEL_URL is not available during build, only at runtime)
     (process.env.VERCEL === '1' && !process.env.VERCEL_URL) ||
-    // During CI builds
     process.env.CI === 'true' ||
-    // Explicit build flag
     process.env.NEXT_PHASE === 'phase-production-build'
   );
 
   if (isBuildTime) {
-    // Return a rejected promise that can be caught
     clientPromise = Promise.reject(new Error('Database connection not available during build'));
     return clientPromise;
   }
@@ -64,56 +100,69 @@ function getClientPromise(): Promise<MongoClient> {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    // In development mode, use a global variable so that the value
-    // is preserved across module reloads caused by HMR (Hot Module Replacement).
+    // Development mode with HMR support
     let globalWithMongo = global as typeof globalThis & {
       _mongoClientPromise?: Promise<MongoClient>
     }
 
     if (!globalWithMongo._mongoClientPromise) {
-      const client = new MongoClient(uri, getConnectionOptions());
+      const cleanUri = createCleanUri(uri);
+      const client = new MongoClient(cleanUri, getConnectionOptions(true));
       globalWithMongo._mongoClientPromise = client.connect().catch((error) => {
-        console.error('MongoDB connection failed:', error);
-        // Reset the promise so it can be retried
+        console.error('MongoDB connection failed in development:', error);
         globalWithMongo._mongoClientPromise = undefined;
         throw error;
       });
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
-    // Production mode - simplified connection logic
+    // Production mode with smart retry logic
     const connectWithRetry = async (): Promise<MongoClient> => {
       const isVercel = process.env.VERCEL === '1';
-      console.log(`🔌 Attempting MongoDB connection (Vercel: ${isVercel}, SSL disabled in URI: ${uriHasSSLDisabled})`);
+      console.log(`🔌 MongoDB connection attempt (Vercel: ${isVercel})`);
       
+      // First attempt: Try with SSL enabled
       try {
-        // Single connection attempt with proper options based on URI
-        const client = new MongoClient(uri, getConnectionOptions());
-        return await client.connect();
-      } catch (error) {
-        console.error('❌ MongoDB connection failed:', error);
+        console.log('🔐 Attempt 1: SSL connection');
+        const cleanUri = createCleanUri(uri, false);
+        const client = new MongoClient(cleanUri, getConnectionOptions(true));
+        const connectedClient = await client.connect();
+        console.log('✅ SSL connection successful');
+        return connectedClient;
+      } catch (sslError) {
+        const errorMessage = sslError instanceof Error ? sslError.message : 'Unknown SSL error';
+        console.log('❌ SSL connection failed:', errorMessage);
         
-        // If this is a SSL/TLS mismatch error and URI doesn't disable SSL, try minimal config
-        if (error instanceof Error && 
-            error.message.includes('All values of tls/ssl must be the same') &&
-            !uriHasSSLDisabled) {
-          console.log('� Retrying with minimal configuration...');
+        // Second attempt: Try without SSL
+        try {
+          console.log('🔓 Attempt 2: Non-SSL connection');
+          const noSSLUri = createCleanUri(uri, true);
+          const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(false));
+          const connectedClient = await fallbackClient.connect();
+          console.log('✅ Non-SSL connection successful');
+          return connectedClient;
+        } catch (fallbackError) {
+          const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : 'Unknown fallback error';
+          console.log('❌ Non-SSL connection failed:', fallbackMessage);
           
+          // Final attempt: Minimal configuration
           try {
-            const minimalClient = new MongoClient(uri, {
+            console.log('⚡ Attempt 3: Minimal configuration');
+            const baseUri = createCleanUri(uri, false);
+            const minimalClient = new MongoClient(baseUri, {
               serverSelectionTimeoutMS: 3000,
               connectTimeoutMS: 5000,
               retryWrites: true,
               appName: 'NextJSFullStackBlog',
             });
-            return await minimalClient.connect();
-          } catch (fallbackError) {
-            console.error('❌ Minimal configuration also failed:', fallbackError);
-            throw error; // Throw original error for debugging
+            const connectedClient = await minimalClient.connect();
+            console.log('✅ Minimal connection successful');
+            return connectedClient;
+          } catch (minimalError) {
+            console.error('❌ All connection attempts failed');
+            throw sslError; // Throw the first error for debugging
           }
         }
-        
-        throw error;
       }
     };
 
@@ -134,16 +183,14 @@ export async function connectToDatabase() {
     const db = client.db();
     return { client, db };
   } catch (error) {
-    // If the clientPromise was rejected due to build-time issues, re-throw with clearer message
     if (error instanceof Error && error.message.includes('Database connection not available during build')) {
       throw error;
     }
     
-    // Handle specific MongoDB connection errors
     if (error instanceof Error) {
       if (error.message.includes('MongoServerSelectionError') || error.message.includes('SSL') || error.message.includes('TLS')) {
         console.error('MongoDB SSL/TLS Connection Error:', error.message);
-        throw new Error('Failed to establish secure connection to MongoDB. Please check your connection settings.');
+        throw new Error('Failed to establish connection to MongoDB. Please check your connection settings.');
       }
       if (error.message.includes('authentication')) {
         console.error('MongoDB Authentication Error:', error.message);
@@ -156,5 +203,4 @@ export async function connectToDatabase() {
   }
 }
 
-// Export clientPromise as default to support direct imports
 export default getClientPromise;
