@@ -1,15 +1,19 @@
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI;
-
-if (!uri) {
+if (!process.env.MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
+const uri = process.env.MONGODB_URI;
+
+// Connection options optimized for Vercel serverless
 const options = {
-  maxPoolSize: 10,
+  maxPoolSize: 1,
+  minPoolSize: 0,
+  maxIdleTimeMS: 30000,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
   retryWrites: true,
   w: 'majority' as const
 };
