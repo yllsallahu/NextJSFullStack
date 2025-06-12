@@ -34,6 +34,8 @@ export default async function handler(
     
     // Try to import the MongoDB client
     console.log("Attempting to connect to MongoDB...");
+    console.log('MongoDB URI:', process.env.MONGODB_URI?.replace(/\/\/[^:]+:[^@]+@/, '//****:****@'));
+    
     const client = await clientPromise();
     console.log("✅ MongoDB client imported successfully");
     
@@ -70,10 +72,18 @@ export default async function handler(
   } catch (error) {
     console.error("❌ Connection test failed:", error);
     
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-      details: error instanceof Error ? error.stack : undefined,
+    // Get more detailed error information
+    const errorDetails = {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      code: (error as any)?.code,
+      codeName: (error as any)?.codeName
+    };
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: errorDetails,
       environment: {
         hasMongoURI: !!process.env.MONGODB_URI,
         hasSecret: !!process.env.NEXTAUTH_SECRET,
