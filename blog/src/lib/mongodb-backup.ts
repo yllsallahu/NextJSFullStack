@@ -97,9 +97,8 @@ function getClientPromise(): Promise<MongoClient> {
     }
 
     if (!globalWithMongo._mongoClientPromise) {
-      const cleanUri = createCleanUri(uri);
-      const client = new MongoClient(cleanUri, getConnectionOptions(true));
-      globalWithMongo._mongoClientPromise = client.connect().catch((error) => {
+      const cleanUri = createCleanUri(uri);          const client = new MongoClient(cleanUri, getVercelOptions());
+          globalWithMongo._mongoClientPromise = client.connect().catch((error) => {
         console.error('MongoDB connection failed in development:', error);
         globalWithMongo._mongoClientPromise = undefined;
         throw error;
@@ -117,7 +116,7 @@ function getClientPromise(): Promise<MongoClient> {
         try {
           console.log('� Vercel Attempt 1: Non-SSL connection (default for Vercel)');
           const noSSLUri = createCleanUri(uri, true);
-          const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(false));
+          const fallbackClient = new MongoClient(noSSLUri, getVercelOptions());
           const connectedClient = await fallbackClient.connect();
           console.log('✅ Non-SSL connection successful on Vercel');
           return connectedClient;
@@ -148,7 +147,7 @@ function getClientPromise(): Promise<MongoClient> {
         try {
           console.log('� Non-Vercel Attempt 1: SSL connection');
           const cleanUri = createCleanUri(uri, false);
-          const client = new MongoClient(cleanUri, getConnectionOptions(true));
+          const client = new MongoClient(cleanUri, getVercelOptions());
           const connectedClient = await client.connect();
           console.log('✅ SSL connection successful');
           return connectedClient;
@@ -160,7 +159,7 @@ function getClientPromise(): Promise<MongoClient> {
           try {
             console.log('🔓 Non-Vercel Attempt 2: Non-SSL connection');
             const noSSLUri = createCleanUri(uri, true);
-            const fallbackClient = new MongoClient(noSSLUri, getConnectionOptions(false));
+            const fallbackClient = new MongoClient(noSSLUri, getVercelOptions());
             const connectedClient = await fallbackClient.connect();
             console.log('✅ Non-SSL connection successful');
             return connectedClient;
