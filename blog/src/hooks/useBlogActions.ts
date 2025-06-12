@@ -23,10 +23,10 @@ export const useBlogActions = ({ onUpdate }: UseBlogActionsProps = {}) => {
 
     setIsLoading(true);
     try {
-      const res = await fetch('/api/blogs/like', {
+      const res = await fetch(`/api/blogs/${blogId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blogId })
+        body: JSON.stringify({ action: 'like' })
       });
 
       if (!res.ok) throw new Error('Failed to like blog');

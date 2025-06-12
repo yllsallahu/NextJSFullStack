@@ -28,5 +28,5 @@ export const convertBlogDocumentToBlog = (blogDoc: BlogDocument): Blog => {
  * Converts an array of BlogDocuments to Blog interfaces
  */
 export const convertBlogDocumentsToBlog = (blogDocs: BlogDocument[]): Blog[] => {
-  return blogDocs.map(blogDoc => convertBlogDocumentToBlog(blogDoc));
+  return blogDocs.map(convertBlogDocumentToBlog);
 };

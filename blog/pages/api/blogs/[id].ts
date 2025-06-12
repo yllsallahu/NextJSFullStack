@@ -69,7 +69,9 @@ export default async function handler(
         if (typeof image === 'string' || image === null) updates.image = image;
         
         const updateResult = await updateBlog(id, updates);
-        return res.json(updateResult);      case 'DELETE':
+        return res.json(updateResult);
+
+      case 'DELETE':
         const blogToDelete = await getBlogById(id);
         if (!blogToDelete) {
           return res.status(404).json({ error: 'Blog not found' });
