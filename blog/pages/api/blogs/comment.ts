@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Check if comment exists and if user is the author or a superuser
-        const comment = blog.comments?.find(c => c._id.toString() === commentId);
+        const comment = blog.comments?.find((c: { _id: { toString: () => string } }) => c._id.toString() === commentId);
         if (!comment) {
           return res.status(404).json({ message: 'Comment not found' });
         }
