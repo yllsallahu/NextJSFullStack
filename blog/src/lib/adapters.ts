@@ -7,7 +7,7 @@ import { ObjectId } from "mongodb";
  */
 export const convertBlogDocumentToBlog = (blogDoc: BlogDocument): Blog => {
   return {
-    id: blogDoc._id?.toString() || '',
+    id: blogDoc._id?.toString() || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     title: blogDoc.title,
     content: blogDoc.content,
     author: blogDoc.author,

@@ -1,5 +1,5 @@
-import { BlogProvider } from "lib/contexts/BlogContext";
-import { FavoritesProvider } from "lib/contexts/FavoritesContext";
+import { BlogProvider } from "../src/lib/contexts/BlogContext";
+import { FavoritesProvider } from "../src/lib/contexts/FavoritesContext";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import { useEffect } from "react";
@@ -34,7 +34,10 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
       refetchOnWindowFocus={true}
       refetchWhenOffline={false}
     >
-      <FavoritesProvider initialFavorites={pageProps.initialFavorites || []} initialFavoriteIds={pageProps.initialFavoriteIds || []}>
+      <FavoritesProvider 
+        initialFavorites={pageProps.initialFavorites || []} 
+        initialFavoriteIds={pageProps.initialFavoriteIds || []}
+      >
         <BlogProvider>
           <Component {...pageProps} />
         </BlogProvider>

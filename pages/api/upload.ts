@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { IncomingForm } from 'formidable';
 import { promises as fs } from 'fs';
+import path from 'path';
 import { getToken } from 'next-auth/jwt';
 import { getUserById } from 'api/services/User';
 import { put } from '@vercel/blob';
@@ -10,6 +11,12 @@ export const config = {
   api: {
     bodyParser: false,
   },
+};
+
+// Helper function to check if Vercel Blob is properly configured
+const isVercelBlobConfigured = () => {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  return token && token !== 'vercel_blob_rw_your_token_here' && !token.includes('placeholder');
 };
 
 export default async function handler(

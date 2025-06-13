@@ -171,7 +171,11 @@ export default function CollectionsPage({
                     </p>
                     
                     <p className="mt-1 text-xs text-gray-400">
-                      Created on {new Date(collection.createdAt).toLocaleDateString()}
+                      Created on {new Date(collection.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
                     </p>
                   </div>
                   

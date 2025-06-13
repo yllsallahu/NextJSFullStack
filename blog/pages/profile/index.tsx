@@ -2,8 +2,8 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
-import Header from "components/Header";
-import Footer from "components/Footer";
+import Header from "../../src/components/Header";
+import Footer from "../../src/components/Footer";
 import FavoritesStats from "../../src/components/shared/FavoritesStats";
 
 interface UserData {
@@ -142,7 +142,7 @@ export default function ProfilePage() {
                       <div className="sm:col-span-2">
                         <dt className="text-sm font-medium text-gray-500">Member Since</dt>
                         <dd className="mt-1 text-sm text-gray-900">
-                          {new Date(userData.createdAt).toLocaleDateString('sq-AL', {
+                          {new Date(userData.createdAt).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'

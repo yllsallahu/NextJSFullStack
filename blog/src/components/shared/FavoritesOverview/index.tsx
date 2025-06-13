@@ -129,7 +129,11 @@ const FavoritesOverview: React.FC<FavoritesOverviewProps> = ({ className = '' })
           )}
           <div className="bg-white p-3 rounded shadow-sm">
             <p className="text-2xl font-bold text-purple-600">
-              {new Date(userFavorites.mostRecentFavorite?.createdAt || new Date()).toLocaleDateString()}
+              {new Date(userFavorites.mostRecentFavorite?.createdAt || new Date()).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
             </p>
             <p className="text-xs text-gray-500">Last Added Favorite</p>
           </div>
@@ -164,8 +168,8 @@ const FavoritesOverview: React.FC<FavoritesOverviewProps> = ({ className = '' })
       </h3>
       <div className="space-y-4">
         {filteredFavorites.length > 0 ? (
-          filteredFavorites.map(blog => (
-                          <div key={blog.id} className="flex items-start border-b pb-4 last:border-b-0 group">
+          filteredFavorites.filter(blog => blog.id && blog.id.trim() !== '').map(blog => (
+            <div key={blog.id} className="flex items-start border-b pb-4 last:border-b-0 group">
               {/* Blog image thumbnail */}
               {blog.imageUrl && (
                 <div className="relative w-16 h-16 flex-shrink-0 mr-3">

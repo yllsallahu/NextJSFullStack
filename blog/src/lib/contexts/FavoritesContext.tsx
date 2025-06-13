@@ -95,7 +95,7 @@ export const FavoritesProvider = ({
       const blogsList = convertBlogDocumentsToBlog(data.favorites || []);
       
       setFavorites(blogsList);
-      setFavoriteIds(blogsList.map(blog => blog.id || ''));
+      setFavoriteIds(blogsList.map(blog => blog.id).filter(id => id && id.trim() !== ''));
     } catch (error) {
       console.error('Error fetching favorites:', error);
       

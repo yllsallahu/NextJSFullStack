@@ -3,9 +3,9 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import Head from 'next/head';
-import Header from 'components/Header';
-import Footer from 'components/Footer';
-import type { Blog } from 'api/models/Blog';
+import Header from '../../../src/components/Header';
+import Footer from '../../../src/components/Footer';
+import type { Blog } from '../../../src/api/models/Blog';
 
 export default function EditBlogPage() {
   const { data: session, status } = useSession();
@@ -209,9 +209,9 @@ export default function EditBlogPage() {
         <meta name="description" content="Edit your blog post" />
       </Head>
 
-      <Header />
+        <Header />
 
-      <main className="flex-grow container mx-auto px-4 py-8">
+        <main className="flex-grow container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg shadow-md p-6">
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Blog Post</h1>
@@ -331,10 +331,10 @@ export default function EditBlogPage() {
               </div>
             </form>
           </div>
-        </div>
-      </main>
+          </div>
+        </main>
 
-      <Footer />
-    </div>
+        <Footer />
+      </div>
   );
 }

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession, signOut } from 'next-auth/react';
-import { isSuperUser } from 'lib/utils';
 
 export default function Header() {
   const { data: session } = useSession();

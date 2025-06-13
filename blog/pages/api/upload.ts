@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { IncomingForm } from 'formidable';
 import { promises as fs } from 'fs';
+import path from 'path';
 import { getToken } from 'next-auth/jwt';
 import { getUserById } from 'api/services/User';
 import { put } from '@vercel/blob';
@@ -10,6 +11,12 @@ export const config = {
   api: {
     bodyParser: false,
   },
+};
+
+// Helper function to check if Vercel Blob is properly configured
+const isVercelBlobConfigured = () => {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  return token && token !== 'vercel_blob_rw_your_token_here' && !token.includes('placeholder');
 };
 
 export default async function handler(
@@ -77,18 +84,43 @@ export default async function handler(
     }
 
     const timestamp = Date.now();
-    // filename will be like '1678886400000.jpg' or '1678886400000' if no ext
-    const filename = ext ? `${timestamp}.${ext}` : `${timestamp}`; 
+    const filename = ext ? `${timestamp}.${ext}` : `${timestamp}`;
     
-    // Upload to Vercel Blob
-    const blob = await put(filename, fileBuffer, {
-      access: 'public',
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
+    // Check if Vercel Blob is configured, otherwise use local storage
+    if (isVercelBlobConfigured()) {
+      try {
+        // Upload to Vercel Blob
+        const blob = await put(filename, fileBuffer, {
+          access: 'public',
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+
+        return res.status(200).json({ imageUrl: blob.url });
+      } catch (blobError: any) {
+        console.error('Vercel Blob upload failed, falling back to local storage:', blobError);
+        // Fall through to local storage
+      }
+    }
     
-    return res.status(200).json({ imageUrl: blob.url });
+    // Fallback: Use local storage
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    
+    // Ensure uploads directory exists
+    try {
+      await fs.access(uploadsDir);
+    } catch {
+      await fs.mkdir(uploadsDir, { recursive: true });
+    }
+    
+    const filePath = path.join(uploadsDir, filename);
+    await fs.writeFile(filePath, fileBuffer);
+    
+    // Return the relative URL for the uploaded file
+    const imageUrl = `/uploads/${filename}`;
+    return res.status(200).json({ imageUrl });
+
   } catch (error: any) {
-    console.error('Error uploading image:', error); // Log the full error object
+    console.error('Error uploading image:', error);
     const message = error.message || 'Failed to upload image';
     return res.status(500).json({ error: message, code: error.code });
   }

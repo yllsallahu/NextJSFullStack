@@ -10,6 +10,7 @@ import Slider from "react-slick";
 import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useBlogActions } from "hooks/useBlogActions";
+import { FavoritesProvider } from "lib/contexts/FavoritesContext";
 
 // Need to import slick styles
 import "slick-carousel/slick/slick.css";
@@ -47,7 +48,7 @@ export default function HomePage() {
   const { data: blogs = [], loading, error, mutate } = useFetch<Blog[]>("/api/blogs");
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
-  const { handleLike, handleDelete } = useBlogActions({ onUpdate: mutate });
+  const { handleDelete } = useBlogActions({ onUpdate: mutate });
   
   useEffect(() => {
     // Add additional class to body when authenticated via Google
@@ -119,7 +120,8 @@ export default function HomePage() {
   const featuredBlogs = blogs?.slice(0, 3) || [];
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <FavoritesProvider>
+      <div className="min-h-screen flex flex-col">
       <Head>
         <title>Blog Platform</title>
         <meta name="description" content="Explore our collection of interesting blogs" />
@@ -212,7 +214,7 @@ export default function HomePage() {
                             <div className="flex justify-between items-center">
                               <div className="flex flex-col">
                                 <span className="text-sm text-gray-600">
-                                  {blog.createdAt ? new Date(blog.createdAt).toLocaleDateString('sq-AL', {
+                                  {blog.createdAt ? new Date(blog.createdAt).toLocaleDateString('en-US', {
                                     year: 'numeric',
                                     month: 'long',
                                     day: 'numeric'
@@ -264,9 +266,9 @@ export default function HomePage() {
               {featuredBlogs.map((blog: Blog) => (                <BlogCard
                   key={blog.id}
                   blog={blog}
-                  onLike={handleLike}
                   onEdit={session?.user?.id === blog.author || session?.user?.isSuperUser ? handleEdit : undefined}
                   onDelete={session?.user?.id === blog.author || session?.user?.isSuperUser ? handleBlogDelete : undefined}
+                  onUpdate={mutate}
                 />
               ))}
             </div>
@@ -308,5 +310,6 @@ export default function HomePage() {
 
       <Footer />
     </div>
+    </FavoritesProvider>
   );
 }

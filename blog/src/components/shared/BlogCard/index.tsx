@@ -3,7 +3,7 @@ import { Blog, Comment } from '../../../api/models/Blog';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import FavoriteButton from '../FavoriteButton';
+import FavoriteButtonV2 from '../FavoriteButton/FavoriteButtonV2';
 import { useBlogActions } from '../../../hooks/useBlogActions';
 import { useFavorites } from '../../../lib/contexts/FavoritesContext';
 
@@ -62,7 +62,7 @@ function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
   );
 }
 
-export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, showAuthor = true }: BlogCardProps) {
+export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, showAuthor = true, showFavoriteButton = true }: BlogCardProps) {
   const { data: session } = useSession();
   const userId = session?.user?.id;
   const [hasLiked, setHasLiked] = useState(blog.likes?.includes(userId as string));
@@ -86,7 +86,8 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
   const canManage = userId === blog.author || session?.user?.isSuperUser;
   
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('sq-AL', {
+    // Use consistent locale to avoid hydration mismatch
+    return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -217,10 +218,13 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
             <span>{blog.comments?.length || 0}</span>
           </button>
           
-          {session && (
-            <FavoriteButton 
+          {session && showFavoriteButton && (
+            <FavoriteButtonV2 
               blogId={blog.id as string} 
-              onToggleFavorite={onUpdate} 
+              onToggleFavorite={onUpdate}
+              size="md"
+              variant="default"
+              animation="scale"
             />
           )}
         </div>

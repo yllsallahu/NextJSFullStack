@@ -14,26 +14,26 @@ export default async function handler(
   }
 
   try {
-    const token = await getToken({ req });
-    if (!token) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
+  const token = await getToken({ req });
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
 
-    // Check if user is a superuser
+  // Check if user is a superuser
     const user = await getUserById(token.id as string);
     if (!user?.isSuperUser) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
+    return res.status(403).json({ error: 'Not authorized' });
+  }
 
-    const { id } = req.query;
+  const { id } = req.query;
     if (!id || typeof id !== 'string') {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
 
     const client = await clientPromise;
-    const db = client.db('myapp');
+  const db = client.db('myapp');
 
-    try {
+  try {
       if (req.method === 'GET') {
         // Get user by ID
         const user = await db.collection('users').findOne(

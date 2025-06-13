@@ -3,7 +3,7 @@ import { Blog } from '../models/Blog';
 
 export function convertBlogDocumentsToBlog(docs: BlogDocument[]): Blog[] {
   return docs.map(doc => ({
-    id: doc._id?.toString() || '',
+    id: doc._id?.toString() || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     title: doc.title,
     content: doc.content,
     author: doc.author,

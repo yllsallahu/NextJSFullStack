@@ -66,7 +66,11 @@ const FavoritesStats: React.FC<FavoritesStatsProps> = ({ className = '' }) => {
                       {mostRecentFavorite.title}
                     </h4>
                     <p className="text-xs text-gray-500">
-                      {mostRecentFavorite.createdAt && new Date(mostRecentFavorite.createdAt).toLocaleDateString()}
+                      {mostRecentFavorite.createdAt && new Date(mostRecentFavorite.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
                     </p>
                   </div>
                 </div>
@@ -78,9 +82,9 @@ const FavoritesStats: React.FC<FavoritesStatsProps> = ({ className = '' }) => {
             <div className="border-t pt-3">
               <p className="text-sm text-gray-500 mb-2">Other recent favorites:</p>
               <ul className="space-y-2">
-                {recentFavorites.slice(1).map(blog => (
-                              <li key={blog.id} className="text-sm">
-              <Link href={`/blogs/${blog.id}`} className="text-gray-700 hover:text-blue-600 transition-colors">
+                {recentFavorites.slice(1).filter(blog => blog.id && blog.id.trim() !== '').map(blog => (
+                  <li key={blog.id} className="text-sm">
+                    <Link href={`/blogs/${blog.id}`} className="text-gray-700 hover:text-blue-600 transition-colors">
                       {blog.title}
                     </Link>
                   </li>

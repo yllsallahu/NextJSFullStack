@@ -9,14 +9,14 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const session = await getServerSession(req, res, authOptions);
-
+    const session = await getServerSession(req, res, authOptions);
+    
   if (!session?.user) {
     return res.status(401).json({ error: "Unauthorized" });
-  }
+    }
 
-  const userId = session.user.id;
-
+    const userId = session.user.id;
+    
   try {
     if (req.method === 'GET') {
       const favoriteDocs = await getFavoriteBlogs(userId) as BlogDocument[];

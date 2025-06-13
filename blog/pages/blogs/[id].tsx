@@ -6,6 +6,8 @@ import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Blog, Comment } from 'api/models/Blog';
+import FavoriteButtonV2 from '@/components/shared/FavoriteButton/FavoriteButtonV2';
+import { FavoritesProvider } from '@/lib/contexts/FavoritesContext';
 
 export default function BlogDetail() {
   const router = useRouter();
@@ -107,12 +109,13 @@ export default function BlogDetail() {
 
   const formatDate = (dateString?: Date) => {
     if (!dateString) return '';
+    // Use consistent locale to avoid hydration mismatch
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-  };
+  };;
 
   if (loading) {
     return (
@@ -144,7 +147,7 @@ export default function BlogDetail() {
   const userHasLiked = blog.likes?.includes(session?.user?.id as string);
 
   return (
-    <>
+    <FavoritesProvider>
       <Head>
         <title>{blog.title} - Next.js Blog</title>
         <meta name="description" content={blog.content.substring(0, 160)} />
@@ -194,6 +197,16 @@ export default function BlogDetail() {
                 </svg>
                 <span>{blog.likes?.length || 0} likes</span>
               </button>
+
+              {session && (
+                <FavoriteButtonV2 
+                  blogId={blog.id as string} 
+                  onToggleFavorite={() => fetchBlog()}
+                  size="md"
+                  variant="default"
+                  showText={true}
+                />
+              )}
 
               {userCanEdit && (
                 <button
@@ -257,6 +270,6 @@ export default function BlogDetail() {
         
         <Footer />
       </div>
-    </>
+    </FavoritesProvider>
   );
 }

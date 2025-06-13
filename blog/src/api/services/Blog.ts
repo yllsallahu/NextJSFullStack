@@ -17,7 +17,7 @@ export async function createBlog(data: Omit<BlogDocument, '_id'>) {
     const result = await db.collection<BlogDocument>("blogs")
       .insertOne({
         ...data,
-        createdAt: new Date(),
+      createdAt: new Date(),
         updatedAt: new Date()
       });
     
@@ -68,13 +68,13 @@ export async function updateBlog(id: string, data: Partial<BlogDocument>) {
     const result = await db.collection<BlogDocument>("blogs")
       .updateOne(
         { _id: new ObjectId(id) },
-        { 
+      { 
           $set: {
             ...data,
             updatedAt: new Date()
           }
-        }
-      );
+      }
+    );
     
     return result;
   } catch (error) {
@@ -257,7 +257,8 @@ export async function getFavoriteBlogs(userId: string): Promise<BlogDocument[]> 
       throw new Error("User not found");
     }
     
-    const favoriteBlogIds = user.favoriteBlogs || [];
+    // Use consistent field name: favorites (not favoriteBlogs)
+    const favoriteBlogIds = user.favorites || [];
     
     // Get the actual blog documents
     const favoriteDocs = await db.collection<BlogDocument>("blogs")
@@ -282,7 +283,8 @@ export async function toggleFavoriteBlog(userId: string, blogId: string): Promis
       throw new Error("User not found");
     }
     
-    const favoriteBlogs = user.favoriteBlogs || [];
+    // Use consistent field name: favorites (not favoriteBlogs)
+    const favoriteBlogs = user.favorites || [];
     const isFavorite = favoriteBlogs.includes(blogId);
     
     // Toggle the favorite status
@@ -290,13 +292,13 @@ export async function toggleFavoriteBlog(userId: string, blogId: string): Promis
       // Remove from favorites
       await db.collection("users").updateOne(
         { _id: new ObjectId(userId) },
-        { $pull: { favoriteBlogs: blogId } } as any
+        { $pull: { favorites: blogId } } as any
       );
     } else {
       // Add to favorites
       await db.collection("users").updateOne(
         { _id: new ObjectId(userId) },
-        { $addToSet: { favoriteBlogs: blogId } } as any
+        { $addToSet: { favorites: blogId } } as any
       );
     }
     
