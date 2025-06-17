@@ -2,32 +2,67 @@ import { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // Allow builds to succeed even if ESLint errors are present
+  poweredByHeader: false, // Remove X-Powered-By header
+  compress: true, // Enable compression
+  trailingSlash: false, // Generate static pages at build time when possible
+  
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Performance optimizations
+  
   compiler: {
-    // Remove console logs in production
-    removeConsole: process.env.NODE_ENV === 'production',
+    // Remove console logs in production except errors
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn']
+    } : false,
+    // Optimize React components in production
+    reactRemoveProperties: process.env.NODE_ENV === 'production' ? {
+      properties: ['^data-testid$']
+    } : false,
   },
-  webpack: (config: any) => {
+  
+  experimental: {
+    // Enable modern optimizations (disabled optimizeCss due to critters issue)
+    scrollRestoration: true,
+  },
+
+  // Move serverComponentsExternalPackages to the correct location
+  serverExternalPackages: ['mongoose', 'mongodb'],
+  
+  webpack: (config: any, { dev, isServer }) => {
     config.resolve.fallback = { fs: false };
     
-    // Bundle analyzer in development
-    if (process.env.ANALYZE === 'true') {
-      const BundleAnalyzerPlugin = require('@next/bundle-analyzer')({
-        enabled: true,
-      });
-      config.plugins.push(BundleAnalyzerPlugin);
+    // Production optimizations
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        minSize: 20000,
+        maxSize: 244000,
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            priority: 10,
+            reuseExistingChunk: true,
+          },
+          common: {
+            name: 'common',
+            minChunks: 2,
+            priority: 5,
+            reuseExistingChunk: true,
+          },
+        },
+      };
     }
     
     return config;
   },
+  
   images: {
-    // Optimize image loading
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 31536000, // 1 year
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     remotePatterns: [
       {
         protocol: 'https',
@@ -43,12 +78,35 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Enable compression
-  compress: true,
-  // Optimize power consumption
-  poweredByHeader: false,
-  // Generate static pages at build time when possible
-  trailingSlash: false,
+  
+  headers: async () => [
+    {
+      source: '/(.*)',
+      headers: [
+        {
+          key: 'X-Frame-Options',
+          value: 'DENY',
+        },
+        {
+          key: 'X-Content-Type-Options',
+          value: 'nosniff',
+        },
+        {
+          key: 'Referrer-Policy',
+          value: 'origin-when-cross-origin',
+        },
+      ],
+    },
+    {
+      source: '/api/(.*)',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'public, max-age=300, s-maxage=300',
+        },
+      ],
+    },
+  ],
 };
 
 export default nextConfig;

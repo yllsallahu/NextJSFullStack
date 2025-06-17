@@ -79,10 +79,12 @@ const FavoritesCollectionForm: React.FC<FavoritesCollectionFormProps> = ({
     setIsSubmitting(true);
     setSubmitStatus(null);
 
-    // Debug logging
-    console.log('Form data being submitted:', data);
-    console.log('Selected blogs:', data.selectedBlogs);
-    console.log('Selected blogs count:', data.selectedBlogs?.length);
+    // Debug logging (will be removed in production build)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Form data being submitted:', data);
+      console.log('Selected blogs:', data.selectedBlogs);
+      console.log('Selected blogs count:', data.selectedBlogs?.length);
+    }
 
     try {
       const response = await fetch(`/api/user/collections${isEditing && initialCollection?.id ? `/${initialCollection.id}` : ''}`, {

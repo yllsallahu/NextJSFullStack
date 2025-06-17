@@ -2,13 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Reset for full-width elements */
+/* Optimized CSS Reset */
 html, body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
   width: 100%;
   max-width: 100vw;
+  scroll-behavior: smooth;
 }
 
 :root {
@@ -16,6 +17,10 @@ html, body {
   --foreground: #171717;
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  
+  /* Performance optimizations */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,10 +30,22 @@ html, body {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  /* Optimize text rendering */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom Carousel Styling */
