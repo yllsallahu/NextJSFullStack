@@ -2,6 +2,7 @@
 import clientPromise from "../../lib/mongodb";
 import { User } from "../models/User";
 import { ObjectId } from "mongodb";
+import { safeObjectId } from "../../lib/mongodb-utils";
 
 export async function createUser(data: Omit<User, '_id'>) {
   try {
@@ -46,11 +47,17 @@ export async function getUser(email: string) {
 
 export async function getUserById(id: string) {
   try {
+    const objectId = safeObjectId(id);
+    if (!objectId) {
+      console.warn(`Invalid user ID provided: ${id}`);
+      return null;
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     const user = await db.collection("users").findOne({ 
-      _id: new ObjectId(id) 
+      _id: objectId 
     });
     
     return user;
@@ -74,11 +81,16 @@ export async function isFirstUser(): Promise<boolean> {
 
 export async function makeSuperUser(userId: string) {
   try {
+    const objectId = safeObjectId(userId);
+    if (!objectId) {
+      throw new Error(`Invalid user ID provided: ${userId}`);
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     const result = await db.collection("users").updateOne(
-      { _id: new ObjectId(userId) },
+      { _id: objectId },
       { $set: { isSuperUser: true } }
     );
     

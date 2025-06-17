@@ -1,6 +1,7 @@
 import clientPromise from '../../lib/mongodb';
 import { BlogDocument } from '../models/Blog';
 import { ObjectId } from 'mongodb';
+import { safeObjectId, safeObjectIds } from '../../lib/mongodb-utils';
 
 interface Comment {
   _id: ObjectId;
@@ -47,11 +48,17 @@ export async function getBlogs() {
 
 export async function getBlogById(id: string) {
   try {
+    const objectId = safeObjectId(id);
+    if (!objectId) {
+      console.warn(`Invalid blog ID provided: ${id}`);
+      return null;
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     const blog = await db.collection<BlogDocument>("blogs")
-      .findOne({ _id: new ObjectId(id) });
+      .findOne({ _id: objectId });
     
     return blog;
   } catch (error) {
@@ -62,12 +69,17 @@ export async function getBlogById(id: string) {
 
 export async function updateBlog(id: string, data: Partial<BlogDocument>) {
   try {
+    const objectId = safeObjectId(id);
+    if (!objectId) {
+      throw new Error(`Invalid blog ID provided: ${id}`);
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     const result = await db.collection<BlogDocument>("blogs")
       .updateOne(
-        { _id: new ObjectId(id) },
+        { _id: objectId },
       { 
           $set: {
             ...data,
@@ -85,11 +97,16 @@ export async function updateBlog(id: string, data: Partial<BlogDocument>) {
 
 export async function deleteBlog(id: string) {
   try {
+    const objectId = safeObjectId(id);
+    if (!objectId) {
+      throw new Error(`Invalid blog ID provided: ${id}`);
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     const result = await db.collection<BlogDocument>("blogs")
-      .deleteOne({ _id: new ObjectId(id) });
+      .deleteOne({ _id: objectId });
     
     return result;
   } catch (error) {
@@ -200,11 +217,16 @@ export async function deleteComment(blogId: string, commentId: string) {
 
 export async function favoriteBlogs(userId: string, blogId: string) {
   try {
+    const userObjectId = safeObjectId(userId);
+    if (!userObjectId) {
+      throw new Error(`Invalid user ID provided: ${userId}`);
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     // Check if the user has already favorited this blog
-    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) } as any);
+    const user = await db.collection("users").findOne({ _id: userObjectId } as any);
     
     if (!user) {
       throw new Error('User not found');
@@ -213,7 +235,7 @@ export async function favoriteBlogs(userId: string, blogId: string) {
     // Initialize favorites array if it doesn't exist
     if (!user.favorites) {
       await db.collection("users").updateOne(
-        { _id: new ObjectId(userId) } as any,
+        { _id: userObjectId } as any,
         { $set: { favorites: [] } }
       );
     }
@@ -222,7 +244,7 @@ export async function favoriteBlogs(userId: string, blogId: string) {
     
     // Toggle favorite status
     const result = await db.collection("users").updateOne(
-      { _id: new ObjectId(userId) } as any,
+      { _id: userObjectId } as any,
       hasFavorited
         ? { $pull: { favorites: blogId } as any }
         : { $addToSet: { favorites: blogId } as any }
@@ -233,7 +255,7 @@ export async function favoriteBlogs(userId: string, blogId: string) {
     }
     
     // Get updated user to return current favorites
-    const updatedUser = await db.collection("users").findOne({ _id: new ObjectId(userId) } as any);
+    const updatedUser = await db.collection("users").findOne({ _id: userObjectId } as any);
     
     return { 
       success: true, 
@@ -248,11 +270,16 @@ export async function favoriteBlogs(userId: string, blogId: string) {
 
 export async function getFavoriteBlogs(userId: string): Promise<BlogDocument[]> {
   try {
+    const userObjectId = safeObjectId(userId);
+    if (!userObjectId) {
+      throw new Error(`Invalid user ID provided: ${userId}`);
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     // Get user's favorite blog IDs
-    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    const user = await db.collection("users").findOne({ _id: userObjectId });
     if (!user) {
       throw new Error("User not found");
     }
@@ -260,9 +287,12 @@ export async function getFavoriteBlogs(userId: string): Promise<BlogDocument[]> 
     // Use consistent field name: favorites (not favoriteBlogs)
     const favoriteBlogIds = user.favorites || [];
     
+    // Filter out invalid ObjectIds and convert valid ones
+    const validObjectIds = safeObjectIds(favoriteBlogIds);
+    
     // Get the actual blog documents
     const favoriteDocs = await db.collection<BlogDocument>("blogs")
-      .find({ _id: { $in: favoriteBlogIds.map((id: string) => new ObjectId(id)) } })
+      .find({ _id: { $in: validObjectIds } })
       .toArray();
     
     return favoriteDocs;
@@ -274,11 +304,16 @@ export async function getFavoriteBlogs(userId: string): Promise<BlogDocument[]> 
 
 export async function toggleFavoriteBlog(userId: string, blogId: string): Promise<boolean> {
   try {
+    const userObjectId = safeObjectId(userId);
+    if (!userObjectId) {
+      throw new Error(`Invalid user ID provided: ${userId}`);
+    }
+    
     const client = await clientPromise;
     const db = client.db("myapp");
     
     // Get the user's current favorites
-    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    const user = await db.collection("users").findOne({ _id: userObjectId });
     if (!user) {
       throw new Error("User not found");
     }
@@ -291,13 +326,13 @@ export async function toggleFavoriteBlog(userId: string, blogId: string): Promis
     if (isFavorite) {
       // Remove from favorites
       await db.collection("users").updateOne(
-        { _id: new ObjectId(userId) },
+        { _id: userObjectId },
         { $pull: { favorites: blogId } } as any
       );
     } else {
       // Add to favorites
       await db.collection("users").updateOne(
-        { _id: new ObjectId(userId) },
+        { _id: userObjectId },
         { $addToSet: { favorites: blogId } } as any
       );
     }
