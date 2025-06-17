@@ -8,15 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "analyze": "cross-env ANALYZE=true next build",
-    "analyze-bundle": "node scripts/bundle-analyzer.js",
     "clean": "rm -rf .next out node_modules/.cache",
     "type-check": "tsc --noEmit",
     "optimize-images": "./scripts/analyze-images.sh",
-    "optimize-check": "./scripts/optimization-check.sh",
-    "optimization-summary": "./scripts/optimization-summary.sh",
-    "build-analyze": "npm run clean && npm run build && npm run analyze-bundle",
-    "performance": "npm run build && npm run analyze-bundle && npm run optimize-check",
-    "full-summary": "npm run build && npm run optimization-summary"
+    "build-analyze": "npm run clean && npm run build && npm run analyze"
   },
   "dependencies": {
     "@auth/core": "^0.34.2",

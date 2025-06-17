@@ -34,9 +34,9 @@ function FavoritesContent() {
           </div>
         ) : favorites.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {favorites.filter(blog => blog.id && blog.id.trim() !== '').map(blog => (
+            {favorites.map(blog => (
               <BlogCard 
-                key={blog.id} 
+                key={blog._id} 
                 blog={blog} 
                 onUpdate={refreshFavorites}
               />
@@ -73,27 +73,6 @@ export default function FavoritesPage({ initialFavorites, initialFavoriteIds }: 
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  // Unified build-time detection logic
-  const isBuildTime = typeof window === 'undefined' && (
-    // During Vercel build process (using VERCEL_URL availability as indicator)
-    process.env.VERCEL === '1' && !process.env.VERCEL_URL ||
-    // During CI builds
-    process.env.CI === 'true' ||
-    // During npm run build without database
-    (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
-    // Explicit build flag
-    process.env.NEXT_PHASE === 'phase-production-build'
-  );
-
-  if (isBuildTime) {
-    return {
-      props: {
-        initialFavorites: [],
-        initialFavoriteIds: []
-      },
-    };
-  }
-
   const session = await getSession(context);
 
   if (!session) {
@@ -130,7 +109,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     
     // Convert BlogDocument[] to Blog[]
     const favorites = convertBlogDocumentsToBlog(blogDocuments);
-    const favoriteIds = favorites.map(blog => blog.id || '');
+    const favoriteIds = favorites.map(blog => blog._id || '');
 
     return {
       props: {
