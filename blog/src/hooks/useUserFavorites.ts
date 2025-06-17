@@ -41,7 +41,7 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
       .slice(0, limit);
     
     setRecentFavorites(sorted);
-  }, [favorites, limit]);
+  }, []);
 
   // Get favorites by author with proper ID handling
   const getFavoritesByAuthor = useCallback(
@@ -114,7 +114,7 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
         console.error('Error refreshing favorites:', error);
       });
     }
-  }, [session, refreshFavorites]);
+  }, []);
 
   const validFavorites = useMemo(() => 
     favorites.filter(blog => blog && blog.id && typeof blog.id === 'string'),
@@ -135,3 +135,20 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
     isLoading
   };
 }
+
+// In the toggleFavorite function, handle the loading state gracefully
+const toggleFavorite = useCallback(async (blogId: string): Promise<void> => {
+    const authStatus = session?.user ? 'authenticated' : 'unauthenticated'; // Correct authStatus definition
+
+    if (!session) {
+      console.warn('Session is not available, skipping favorite toggle');
+      return; // Gracefully handle missing session
+    }
+
+    if (authStatus === 'unauthenticated') {
+      console.error('User is not authenticated');
+      return;
+    }
+
+    // ...existing logic...
+  }, [session]);

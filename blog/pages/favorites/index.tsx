@@ -63,10 +63,7 @@ function FavoritesContent() {
 
 export default function FavoritesPage({ initialFavorites, initialFavoriteIds }: FavoritesPageProps) {
   return (
-    <FavoritesProvider 
-      initialFavorites={initialFavorites}
-      initialFavoriteIds={initialFavoriteIds}
-    >
+    <FavoritesProvider>
       <FavoritesContent />
     </FavoritesProvider>
   );

@@ -35,12 +35,10 @@ interface CollectionPageProps {
 export default function CollectionPage({
   collection,
   blogs,
-  initialFavorites,
-  initialFavoriteIds,
   isOwner
 }: CollectionPageProps) {
   return (
-    <FavoritesProvider initialFavorites={initialFavorites} initialFavoriteIds={initialFavoriteIds}>
+    <FavoritesProvider>
       <Head>
         <title>{collection.name} | Blog Platform</title>
         <meta name="description" content={collection.description || `View the ${collection.name} collection`} />
@@ -99,22 +97,17 @@ export default function CollectionPage({
                 <div className="mt-6">
                   <Link
                     href={`/collections/edit/${collection._id}`}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                   >
-                    Add Blogs to Collection
+                    Add Blogs
                   </Link>
                 </div>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {blogs.map((blog) => (
-                <BlogCard 
-                  key={blog.id} 
-                  blog={blog}
-                  showAuthor={true} 
-                  showFavoriteButton={isOwner}
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {blogs.map(blog => (
+                <BlogCard key={blog.id} blog={blog} showAuthor={true} showFavoriteButton={true} />
               ))}
             </div>
           )}

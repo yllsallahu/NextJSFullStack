@@ -13,7 +13,7 @@ interface FavoritesTestPageProps {
   initialFavoriteIds: string[];
 }
 
-export default function FavoritesTestPage({ initialFavorites, initialFavoriteIds }: FavoritesTestPageProps) {
+export default function FavoritesTestPage() {
   const [testResults, setTestResults] = useState<string[]>([]);
   const [isTestingPerformance, setIsTestingPerformance] = useState(false);
 
@@ -83,7 +83,7 @@ export default function FavoritesTestPage({ initialFavorites, initialFavoriteIds
   };
 
   return (
-    <FavoritesProvider initialFavorites={initialFavorites} initialFavoriteIds={initialFavoriteIds}>
+    <FavoritesProvider>
       <Head>
         <title>Favorites System Test | Blog Platform</title>
         <meta name="description" content="Comprehensive test page for the improved favorites system" />

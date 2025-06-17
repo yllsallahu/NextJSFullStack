@@ -3,9 +3,11 @@ import { Blog, Comment } from '../../../api/models/Blog';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
 import FavoriteButtonV2 from '../FavoriteButton/FavoriteButtonV2';
 import { useBlogActions } from '../../../hooks/useBlogActions';
 import { useFavorites } from '../../../lib/contexts/FavoritesContext';
+import toast from 'react-hot-toast';
 
 interface BlogCardProps {
   blog: Blog;
@@ -64,12 +66,20 @@ function CommentForm({ blogId, onCommentAdded }: CommentFormProps) {
 
 export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, showAuthor = true, showFavoriteButton = true }: BlogCardProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const userId = session?.user?.id;
   const [hasLiked, setHasLiked] = useState(blog.likes?.includes(userId as string));
   const [likeCount, setLikeCount] = useState(blog.likes?.length || 0);
   const [showComments, setShowComments] = useState(false);
   const [commentsUpdated, setCommentsUpdated] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Blog actions hooks
+  const blogActions = useBlogActions({ onUpdate });
+  const handleLikeInternal = onLike || blogActions.handleLike;
+  const handleDeleteInternal = onDelete || blogActions.handleDelete;
+  const handleDeleteComment = blogActions.handleDeleteComment;
 
   // Ensure we have a valid blog ID
   const blogId = useMemo(() => {
@@ -80,45 +90,84 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
     return blog.id.toString().replace(/^new ObjectId\("(.+)"\)$/, '$1');
   }, [blog.id]);
 
-  // Use custom hooks for default actions if not provided through props
-  const blogActions = useBlogActions({ onUpdate });
-  const handleLikeInternal = onLike || blogActions.handleLike;
-  const handleDeleteInternal = onDelete || blogActions.handleDelete;
-  const handleDeleteComment = blogActions.handleDeleteComment;
-  
   useEffect(() => {
-    // Update like status when user changes or blog changes
     setHasLiked(blog.likes?.includes(userId as string) || false);
     setLikeCount(blog.likes?.length || 0);
   }, [userId, blog.likes]);
-  
+
+  useEffect(() => {
+    if (session?.user?.favorites) {
+      blog.isFavorited = session.user.favorites.includes(blogId);
+    }
+  }, [session?.user?.favorites, blogId]);
+
   const canManage = userId === blog.author || session?.user?.isSuperUser;
-  
+
   const formatDate = (date: Date) => {
-    // Use consistent locale to avoid hydration mismatch
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
   };
-  
+
   const handleCommentAdded = () => {
     setCommentsUpdated(!commentsUpdated);
     if (onUpdate) onUpdate();
   };
+
   const handleLikeClick = async () => {
-    if (!blogId) return;
-    
-    const result = await handleLikeInternal(blogId);
-    if (result && !result.error) {
-      setHasLiked(!hasLiked);
-      setLikeCount((prev) => hasLiked ? prev - 1 : prev + 1);
+    if (!session) {
+      const returnUrl = encodeURIComponent(router.asPath);
+      router.push(`/auth/signin?callbackUrl=${returnUrl}`);
+      return;
+    }
+
+    if (!blogId) {
+      toast.error('Invalid blog ID');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await handleLikeInternal(blogId);
+      if (result && !result.error) {
+        setHasLiked(!hasLiked);
+        setLikeCount((prev) => hasLiked ? prev - 1 : prev + 1);
+        toast.success(hasLiked ? 'Like removed' : 'Blog liked!');
+      } else {
+        throw new Error('Failed to like blog');
+      }
+    } catch (error) {
+      console.error('Error liking blog:', error);
+      toast.error('Failed to like blog. Please try again.');
+      // Revert optimistic update if needed
+      setHasLiked(hasLiked);
+      setLikeCount(blog.likes?.length || 0);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDeleteClick = async (blogId: string) => {
-    await handleDeleteInternal(blogId);
+    if (!window.confirm('Are you sure you want to delete this blog?')) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await handleDeleteInternal(blogId);
+      if (result && !result.error) {
+        toast.success('Blog deleted successfully');
+      } else {
+        throw new Error('Failed to delete blog');
+      }
+    } catch (error) {
+      console.error('Error deleting blog:', error);
+      toast.error('Failed to delete blog. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
     setShowDropdown(false);
   };
 
@@ -132,9 +181,38 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
   };
 
   const handleDeleteCommentClick = async (commentId: string) => {
-    await handleDeleteComment(blog.id as string, commentId);
-    handleCommentAdded();
+    if (!blogId) {
+      toast.error('Invalid blog ID');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await handleDeleteComment(blogId, commentId);
+      handleCommentAdded();
+      toast.success('Comment deleted');
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      toast.error('Failed to delete comment. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Helper function to get comment key
+  const getCommentKey = (comment: Comment) => {
+    return comment._id ? comment._id.toString() : `temp-${Date.now()}`;
+  };
+
+  // Helper function to get comment ID for deletion
+  const getCommentId = (comment: Comment) => {
+    return comment._id ? comment._id.toString() : undefined;
+  };
+
+  const isFavorited = useMemo(() => {
+    const favorites = session?.user?.favorites || [];
+    return favorites.includes(blogId);
+  }, [session?.user?.favorites, blogId]);
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -237,10 +315,8 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
           {session && showFavoriteButton && blogId && (
             <FavoriteButtonV2 
               blogId={blogId}
+              isFavorited={blog.isFavorited} // Pass favorited state
               onToggleFavorite={onUpdate}
-              size="md"
-              variant="default"
-              animation="scale"
             />
           )}
         </div>
@@ -252,14 +328,20 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
             {blog.comments && blog.comments.length > 0 ? (
               <div className="space-y-3">
                 {blog.comments.map((comment) => (
-                  <div key={comment._id} className="bg-gray-50 text-black p-3 rounded relative group">
+                  <div key={getCommentKey(comment)} className="bg-gray-50 text-black p-3 rounded relative group">
                     <p className="text-sm">{comment.content}</p>
                     <div className="text-xs text-black mt-1 flex justify-between items-center">
                       <span>{comment.createdAt && formatDate(comment.createdAt)}</span>
                       {session?.user?.isSuperUser && (
                         <button
-                          onClick={() => handleDeleteCommentClick(comment._id as string)}
-                          className="text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          onClick={() => {
+                            const commentId = getCommentId(comment);
+                            if (commentId) {
+                              handleDeleteCommentClick(commentId);
+                            }
+                          }}
+                          disabled={isLoading}
+                          className="text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 disabled:opacity-50"
                           title="Delete comment"
                         >
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,14 +354,14 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
                 ))}
               </div>
             ) : (
-              <p className="text-black text-sm">No comments yet.</p>
+              <p className="text-sm text-black">No comments yet.</p>
             )}
             
-            {session && <CommentForm blogId={blog.id as string} onCommentAdded={handleCommentAdded} />}
+            {session && <CommentForm blogId={blogId as string} onCommentAdded={handleCommentAdded} />}
             
             {!session && (
               <p className="text-sm text-black mt-3">
-                Please log in to comment.
+                Please <Link href="/auth/signin" className="text-blue-600 hover:text-blue-800">log in</Link> to comment.
               </p>
             )}
           </div>

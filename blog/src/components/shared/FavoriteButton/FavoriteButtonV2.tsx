@@ -1,69 +1,46 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useFavorites } from '../../../lib/contexts/FavoritesContext';
+import toast from 'react-hot-toast';
 
 interface FavoriteButtonProps {
   blogId: string;
+  isFavorited?: boolean; // Add isFavorited prop
   onToggleFavorite?: () => void;
-  size?: 'sm' | 'md' | 'lg';
-  showText?: boolean;
-  className?: string;
-  variant?: 'default' | 'minimal' | 'outlined' | 'ghost' | 'pill';
   disabled?: boolean;
-  showCount?: boolean;
-  animation?: 'bounce' | 'pulse' | 'scale' | 'none';
-  testId?: string; // For testing
-  showTooltip?: boolean;
-  customIcon?: React.ReactNode;
 }
 
 // Performance optimizations
 const FavoriteButtonV2 = React.memo(({ 
   blogId, 
+  isFavorited = false, // Default to false
   onToggleFavorite, 
-  size = 'md',
-  showText = false,
-  className = '',
-  variant = 'default',
   disabled = false,
-  showCount = false,
-  animation = 'scale',
-  testId,
-  showTooltip = true,
-  customIcon
 }: FavoriteButtonProps) => {
-  const { data: session } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
-  const { isFavorite, isLoading: contextLoading, toggleFavorite, favorites } = useFavorites();
+  const { isFavorite, isLoading: contextLoading, toggleFavorite } = useFavorites();
   
   // Local state with optimistic updates
   const [isProcessing, setIsProcessing] = useState(false);
   const [optimisticState, setOptimisticState] = useState<boolean | null>(null);
-  const [animationKey, setAnimationKey] = useState(0);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const clickCountRef = useRef(0);
+  const redirectInProgressRef = useRef(false);
 
   // Helper to validate and format blog ID
   const sanitizeBlogId = useCallback((id: string | undefined): string | null => {
     if (!id || id === 'undefined' || id === '') return null;
-    // Handle ObjectId string format or regular string ID
     return id.toString().replace(/^new ObjectId\("(.+)"\)$/, '$1');
   }, []);
 
-  // Memoize favorite status with optimistic updates
-  const isFavorited = useMemo(() => {
+  // Only check favorite status if user is logged in
+  const favoritedState = useCallback(() => {
+    if (authStatus !== 'authenticated') return false;
     const sanitizedId = sanitizeBlogId(blogId);
     if (!sanitizedId) return false;
     return optimisticState !== null ? optimisticState : isFavorite(sanitizedId);
-  }, [blogId, isFavorite, optimisticState, sanitizeBlogId]);
-
-  // Get favorite count for this blog (if needed)
-  const favoriteCount = useMemo(() => {
-    if (!showCount) return 0;
-    // In a real implementation, you'd get this from the blog data or a separate API
-    return Math.floor(Math.random() * 50); // Mock data for demo
-  }, [showCount, blogId]);
+  }, [blogId, isFavorite, optimisticState, sanitizeBlogId, authStatus]);
 
   // Enhanced size configurations
   const sizeConfig = {
@@ -129,52 +106,79 @@ const FavoriteButtonV2 = React.memo(({
     none: ''
   };
 
-  const config = sizeConfig[size];
-  const styles = variantStyles[variant];
+  const config = sizeConfig.md;
+  const styles = variantStyles.default;
   const isButtonLoading = contextLoading || isProcessing;
 
-  // Debounced click handler to prevent rapid clicking
+  // Enhanced click handler with better auth state handling
   const handleFavoriteClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (isButtonLoading || disabled) return;
-    
-    clickCountRef.current += 1;
-    
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    
-    if (!session) {
-      const currentPath = router.asPath;
-      router.push(`/auth/signin?callbackUrl=${encodeURIComponent(currentPath)}`);
-      return;
-    }
+
+    // Early return if button should not respond
+    if (isButtonLoading || disabled || redirectInProgressRef.current) return;
 
     const sanitizedId = sanitizeBlogId(blogId);
     if (!sanitizedId) {
       console.error('Invalid blog ID for favorites:', blogId);
+      redirectInProgressRef.current = false; // Reset redirect flag
       return;
     }
 
+    // Handle unauthenticated state
+    if (authStatus === 'loading') return;
+
+    if (authStatus === 'unauthenticated') {
+      if (redirectInProgressRef.current) return;
+      redirectInProgressRef.current = true;
+
+      const returnUrl = encodeURIComponent(router.asPath);
+      router.push(`/auth/signin?callbackUrl=${returnUrl}`).then(() => {
+        redirectInProgressRef.current = false;
+      });
+      return;
+    }
+
+    // Prevent rapid clicking
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
     setIsProcessing(true);
-    setOptimisticState(!isFavorited);
-    
+    setOptimisticState(!favoritedState());
+
     try {
       await toggleFavorite(sanitizedId);
       if (onToggleFavorite) onToggleFavorite();
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      setOptimisticState(null); // Reset optimistic state on error
+      setOptimisticState(null);
+      toast.error('Failed to update favorite status');
     } finally {
       setIsProcessing(false);
-      // Reset optimistic state after animation completes
-      setTimeout(() => setOptimisticState(null), 300);
+      debounceRef.current = setTimeout(() => {
+        setOptimisticState(null);
+      }, 300);
     }
-  }, [isButtonLoading, disabled, session, blogId, router, isFavorited, toggleFavorite, onToggleFavorite, sanitizeBlogId]);
+  }, [
+    isButtonLoading, 
+    disabled, 
+    blogId, 
+    authStatus,
+    router,
+    toggleFavorite,
+    onToggleFavorite,
+    sanitizeBlogId
+  ]);
 
-  // Cleanup debounce on unmount
+  // Reset redirect flag when auth status changes
+  useEffect(() => {
+    if (authStatus === 'authenticated') {
+      redirectInProgressRef.current = false;
+    }
+  }, [authStatus]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -183,129 +187,18 @@ const FavoriteButtonV2 = React.memo(({
     };
   }, []);
 
-  const getButtonClasses = useCallback(() => {
-    let classes = `${config.button} ${styles.base} ${animationClasses[animation]}`;
-    
-    if (isButtonLoading) {
-      classes += ` ${styles.loading}`;
-    } else if (isFavorited) {
-      classes += ` ${styles.favorited}`;
-    } else {
-      classes += ` ${styles.unfavorited}`;
-    }
-    
-    // Focus styles with more prominent yellow ring
-    classes += ` focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-opacity-60 focus:ring-offset-2`;
-    
-    // Disabled styles
-    if (disabled) {
-      classes += ` opacity-50 cursor-not-allowed`;
-    }
-    
-    if (className) {
-      classes += ` ${className}`;
-    }
-    
-    return classes;
-  }, [config, styles, animation, isButtonLoading, isFavorited, disabled, className, animationClasses]);
-
-  const getButtonTitle = useCallback(() => {
-    if (disabled) return 'Favorites disabled';
-    if (isButtonLoading) return 'Processing...';
-    if (!session) return 'Login to add favorites';
-    return isFavorited ? 'Remove from favorites' : 'Add to favorites';
-  }, [disabled, isButtonLoading, session, isFavorited]);
-
-  const getButtonText = useCallback(() => {
-    if (isButtonLoading) return 'Processing...';
-    if (showCount && favoriteCount > 0) {
-      return isFavorited ? `Favorited (${favoriteCount})` : `Favorite (${favoriteCount})`;
-    }
-    return isFavorited ? 'Favorited' : 'Favorite';
-  }, [isButtonLoading, isFavorited, showCount, favoriteCount]);
-
-  const renderIcon = useCallback(() => {
-    // Custom icon takes precedence
-    if (customIcon) {
-      return <span className={config.icon}>{customIcon}</span>;
-    }
-
-    // Loading spinner
-    if (isButtonLoading) {
-      return (
-        <svg 
-          className={`${config.icon} animate-spin`} 
-          fill="none" 
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <circle 
-            className="opacity-25" 
-            cx="12" 
-            cy="12" 
-            r="10" 
-            stroke="currentColor" 
-            strokeWidth="4"
-          />
-          <path 
-            className="opacity-75" 
-            fill="currentColor" 
-            d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-      );
-    }
-
-    // Heart icon with animation
-    return (
-      <svg 
-        key={animationKey} // Force re-render for animation
-        xmlns="http://www.w3.org/2000/svg" 
-        viewBox="0 0 24 24" 
-        fill={isFavorited ? "currentColor" : "none"} 
-        stroke="currentColor" 
-        className={`${config.icon} transition-all duration-300 ${
-          isFavorited && animation !== 'none' ? animationClasses[animation] : ''
-        }`}
-        aria-hidden="true"
-      >
-        <path 
-          strokeLinecap="round" 
-          strokeLinejoin="round" 
-          strokeWidth={isFavorited ? "0" : "1.5"} 
-          d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" 
-        />
-      </svg>
-    );
-  }, [config.icon, isButtonLoading, isFavorited, customIcon, animationKey, animation, animationClasses]);
-
   return (
     <button
       onClick={handleFavoriteClick}
       disabled={isButtonLoading || disabled}
-      className={getButtonClasses()}
-      aria-label={getButtonTitle()}
-      title={showTooltip ? getButtonTitle() : undefined}
+      className={`p-2 rounded-full border transition-all duration-300 ease-out ${isFavorited ? 'text-yellow-500 bg-yellow-50 border-yellow-200' : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 hover:border-yellow-200'} focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-opacity-60`}
+      aria-label="Add to favorites"
+      title="Add to favorites"
       type="button"
-      data-testid={testId}
-      data-blog-id={blogId}
-      data-favorited={isFavorited}
-      data-click-count={clickCountRef.current}
     >
-      <div className={`flex items-center ${config.gap}`}>
-        {renderIcon()}
-        
-        {showText && (
-          <span className={`${config.text} whitespace-nowrap`}>
-            {getButtonText()}
-          </span>
-        )}
-      </div>
-      
-      {/* Ripple effect for better UX */}
-      {variant === 'default' && (
-        <span className="absolute inset-0 rounded-full bg-white opacity-0 transition-opacity duration-150 pointer-events-none" />
-      )}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+      </svg>
     </button>
   );
 });

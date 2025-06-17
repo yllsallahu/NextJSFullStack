@@ -1,217 +1,268 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Blog } from '../../api/models/Blog';
-import { convertBlogDocumentsToBlog } from '../adapters';
+
+// Custom comment interfaces to avoid conflicts with DOM types
+interface BlogComment {
+  _id: string;
+  content: string;
+  author: string;
+  createdAt: Date;
+}
+
+interface RawCommentData {
+  _id?: string;
+  content?: string;
+  author?: string;
+  createdAt?: string | Date;
+}
+
+interface RawFavoriteData {
+  id?: string;
+  title?: string;
+  content?: string;
+  author?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  tags?: string[];
+  imageUrl?: string;
+  summary?: string;
+  isPublished?: boolean;
+  slug?: string;
+  views?: number;
+  likes?: string[];
+  comments?: RawCommentData[];
+}
+
+// Extend Blog interface to use our custom BlogComment type
+interface BlogWithComments extends Omit<Blog, 'comments'> {
+  comments: BlogComment[];
+}
+
+interface FavoriteResponseData {
+  favorites: RawFavoriteData[];
+}
+
+interface ProcessedBlog extends BlogWithComments {
+  id: string;
+}
 
 interface FavoritesContextType {
   favorites: Blog[];
   favoriteIds: string[];
   isLoading: boolean;
-  toggleFavorite: (blogId: string) => Promise<void>;
   isFavorite: (blogId: string) => boolean;
+  toggleFavorite: (blogId: string) => Promise<void>;
   refreshFavorites: () => Promise<void>;
 }
 
 // Create a context with default values
-const FavoritesContext = createContext<FavoritesContextType>({
-  favorites: [],
-  favoriteIds: [],
-  isLoading: false,
-  toggleFavorite: async () => {},
-  isFavorite: () => false,
-  refreshFavorites: async () => {},
-});
+const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
 
-interface FavoritesProviderProps {
-  children: ReactNode;
-  initialFavorites?: Blog[];
-  initialFavoriteIds?: string[];
-}
+export const useFavorites = () => {
+  const context = useContext(FavoritesContext);
+  
+  if (!context) {
+    throw new Error('useFavorites must be used within a FavoritesProvider');
+  }
+  
+  return context;
+};
 
-export const FavoritesProvider = ({ 
-  children, 
-  initialFavorites = [], 
-  initialFavoriteIds = [] 
-}: FavoritesProviderProps) => {
-  const { data: session } = useSession();
-  const [favorites, setFavorites] = useState<Blog[]>(initialFavorites);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(initialFavoriteIds);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+export function FavoritesProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status: authStatus } = useSession();
+  const [favorites, setFavorites] = useState<BlogWithComments[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastError, setLastError] = useState<Error | null>(null);
 
-  // Helper function to sanitize blog IDs
-  const sanitizeBlogId = (id: string): string => {
-    return id.replace(/^new ObjectId\("(.+)"\)$/, '$1');
-  };
+  // Helper to sanitize blog IDs
+  const sanitizeBlogId = useCallback((id: string): string => {
+    return id.replace(/^new ObjectId\("(.+)"\)$/, '$1').trim();
+  }, []);
 
-  // Refresh favorites when session changes
-  useEffect(() => {
-    if (session) {
-      refreshFavorites();
-    } else {
-      // Clear favorites when logged out
-      setFavorites([]);
-      setFavoriteIds([]);
+  // Helper to process a raw comment into a valid BlogComment object
+  const processComment = useCallback((raw: unknown): BlogComment => {
+    if (typeof raw !== 'object' || !raw) {
+      return {
+        _id: '',
+        content: '',
+        author: '',
+        createdAt: new Date()
+      };
     }
-  }, [session]);
 
-  // Function to check if a blog is favorited
-  const isFavorite = (blogId: string): boolean => {
+    const comment = raw as RawCommentData;
+    return {
+      _id: comment._id || '',
+      content: comment.content || '',
+      author: comment.author || '',
+      createdAt: comment.createdAt ? new Date(comment.createdAt) : new Date()
+    };
+  }, []);
+
+  // Process raw blog data into a valid Blog object
+  const processBlogData = useCallback((raw: RawFavoriteData): ProcessedBlog => ({
+    id: raw.id ? sanitizeBlogId(raw.id) : '',
+    title: raw.title || '',
+    content: raw.content || '',
+    author: raw.author || '',
+    createdAt: raw.createdAt || new Date(),
+    updatedAt: raw.updatedAt || new Date(),
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    imageUrl: raw.imageUrl,
+    summary: raw.summary,
+    isPublished: !!raw.isPublished,
+    slug: raw.slug || '',
+    views: typeof raw.views === 'number' ? raw.views : 0,
+    likes: Array.isArray(raw.likes) ? raw.likes.filter((id): id is string => typeof id === 'string') : [],
+    comments: Array.isArray(raw.comments) ? raw.comments.map(processComment) : []
+  }), [sanitizeBlogId, processComment]);
+
+  // Check if a blog is favorited
+  const isFavorite = useCallback((blogId: string): boolean => {
+    if (authStatus !== 'authenticated') return false;
     const sanitizedId = sanitizeBlogId(blogId);
     return favoriteIds.includes(sanitizedId);
-  };
+  }, [favoriteIds, sanitizeBlogId, authStatus]);
 
-  // Function to refresh favorites from the API
-  const refreshFavorites = async (): Promise<void> => {
-    if (!session) return;
-    
+  // Refresh favorites list with better error handling
+  const refreshFavorites = useCallback(async () => {
+    // Skip fetch if auth status is loading or unauthenticated
+    if (authStatus === 'loading' || authStatus === 'unauthenticated') {
+      setFavorites([]);
+      setFavoriteIds([]);
+      return;
+    }
+
+    // Don't refetch if already loading
+    if (isLoading) return;
+
     setIsLoading(true);
+    setLastError(null);
+
     try {
       const res = await fetch('/api/blogs/favorite');
-      
+
+      // Handle specific error cases without throwing
+      if (res.status === 401 || res.status === 403) {
+        console.warn('Unauthorized access to favorites API');
+        setFavorites([]);
+        setFavoriteIds([]);
+        setIsLoading(false); // Ensure loading state is reset
+        return;
+      }
+
       if (!res.ok) {
         let errorMessage = 'Failed to fetch favorites';
-        
-        switch (res.status) {
-          case 401:
-            errorMessage = 'You are not authorized to access favorites. Please log in again.';
-            break;
-          case 403:
-            errorMessage = 'Access forbidden. You do not have permission to view favorites.';
-            break;
-          case 404:
-            errorMessage = 'Favorites service not found.';
-            break;
-          case 500:
-            errorMessage = 'Server error occurred while fetching favorites.';
-            break;
-          default:
-            try {
-              const errorData = await res.json();
-              errorMessage = errorData.error || errorMessage;
-            } catch {
-              // If we can't parse error response, use default message
-            }
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If we can't parse error response, use default message
         }
-        
         throw new Error(errorMessage);
       }
-      
-      const data = await res.json();
-      const blogsList = convertBlogDocumentsToBlog(data.favorites || []);
-      
-      // Ensure all blog IDs are properly sanitized
-      const sanitizedBlogsList = blogsList.map(blog => ({
-        ...blog,
-        id: blog.id ? sanitizeBlogId(blog.id) : blog.id
-      }));
 
-      // Only update state if we have valid data
-      if (Array.isArray(sanitizedBlogsList)) {
-        setFavorites(sanitizedBlogsList);
-        setFavoriteIds(sanitizedBlogsList
-          .map(blog => blog.id)
-          .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
-        );
+      const data = await res.json() as FavoriteResponseData;
+
+      // Handle empty or invalid response gracefully
+      if (!data || !Array.isArray(data.favorites)) {
+        setFavorites([]);
+        setFavoriteIds([]);
+        return;
       }
+
+      // Process and validate the data
+      const validBlogs = data.favorites
+        .filter((blog): blog is RawFavoriteData => 
+          blog && typeof blog === 'object' && typeof blog.id === 'string')
+        .map(processBlogData)
+        .filter((blog): blog is Blog => blog.id !== '');
+
+      setFavorites(validBlogs);
+      setFavoriteIds(validBlogs.map(blog => blog.id));
+
     } catch (error) {
       console.error('Error fetching favorites:', error);
-      
-      // Only reset favorites on authentication errors or when explicitly needed
+      setLastError(error instanceof Error ? error : new Error('Unknown error'));
+
+      // Don't reset favorites on network errors to prevent UI flashing
       if (error instanceof Error && 
-          (error.message.includes('authorized') || error.message.includes('forbidden'))) {
+          (error.message.includes('unauthorized') || 
+           error.message.includes('forbidden'))) {
         setFavorites([]);
         setFavoriteIds([]);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  // Function to toggle favorite status
-  const toggleFavorite = async (blogId: string): Promise<void> => {
-    if (!session || !blogId) {
+  // Toggle favorite status with better error handling
+  const toggleFavorite = useCallback(async (blogId: string): Promise<void> => {
+    if (authStatus === 'loading') {
+      throw new Error('Authentication state is loading');
+    }
+
+    if (authStatus === 'unauthenticated') {
+      // Instead of throwing, we'll let the component handle the redirect
       return;
     }
 
     const sanitizedId = sanitizeBlogId(blogId);
-    const wasFavorited = isFavorite(sanitizedId);
-    const originalFavorites = favorites;
-    const originalIds = favoriteIds;
-
-    // Optimistically update UI
-    if (wasFavorited) {
-      setFavoriteIds(prev => prev.filter(id => id !== sanitizedId));
-      setFavorites(prev => prev.filter(blog => blog.id !== sanitizedId));
+    if (!sanitizedId) {
+      throw new Error('Invalid blog ID');
     }
 
-    setIsLoading(true);
     try {
-      const response = await fetch('/api/blogs/favorite', {
+      const res = await fetch('/api/blogs/favorite', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ blogId: sanitizedId }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blogId: sanitizedId })
       });
 
-      if (!response.ok) {
-        let errorMessage = 'Failed to toggle favorite';
-        
-        switch (response.status) {
-          case 401:
-            errorMessage = 'You are not authorized to modify favorites. Please log in again.';
-            break;
-          case 403:
-            errorMessage = 'Access forbidden. You do not have permission to modify favorites.';
-            break;
-          case 404:
-            errorMessage = 'Blog not found or favorites service unavailable.';
-            break;
-          case 500:
-            errorMessage = 'Server error occurred while updating favorites.';
-            break;
-          default:
-            try {
-              const data = await response.json();
-              errorMessage = data.error || errorMessage;
-            } catch {
-              // If we can't parse error response, use default message
-            }
-        }
-        
-        // Revert optimistic update on error
-        setFavorites(originalFavorites);
-        setFavoriteIds(originalIds);
-        
-        throw new Error(errorMessage);
+      if (res.status === 401 || res.status === 403) {
+        setFavorites([]);
+        setFavoriteIds([]);
+        return;
       }
 
-      // If we're adding (not removing) a favorite, refresh to get the full blog data
-      if (!wasFavorited) {
-        await refreshFavorites();
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to toggle favorite status');
       }
+
+      // Only refresh if the toggle was successful
+      await refreshFavorites();
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      
-      // Revert optimistic update on error
-      setFavorites(originalFavorites);
-      setFavoriteIds(originalIds);
-      
-      if (error instanceof Error) {
-        throw error; // Re-throw to let components handle the error
-      }
-    } finally {
-      setIsLoading(false);
+      setLastError(error instanceof Error ? error : new Error('Unknown error'));
+      throw error;
     }
-  };
+  }, []);
+
+  // Initial fetch and auth state changes
+  useEffect(() => {
+    // Skip initial fetch while auth is loading
+    if (authStatus === 'loading') return;
+    
+    if (authStatus === 'authenticated') {
+      refreshFavorites();
+    } else {
+      // Clear favorites when explicitly not authenticated
+      setFavorites([]);
+      setFavoriteIds([]);
+    }
+  }, []);
 
   const value = {
     favorites,
     favoriteIds,
     isLoading,
-    toggleFavorite,
     isFavorite,
-    refreshFavorites,
+    toggleFavorite,
+    refreshFavorites
   };
 
   return (
@@ -219,15 +270,4 @@ export const FavoritesProvider = ({
       {children}
     </FavoritesContext.Provider>
   );
-};
-
-// Custom hook for using the favorites context
-export const useFavorites = () => {
-  const context = useContext(FavoritesContext);
-  
-  if (context === undefined) {
-    throw new Error('useFavorites must be used within a FavoritesProvider');
-  }
-  
-  return context;
-};
+}
