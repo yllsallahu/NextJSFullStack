@@ -38,6 +38,11 @@ export const FavoritesProvider = ({
   const [favoriteIds, setFavoriteIds] = useState<string[]>(initialFavoriteIds);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Helper function to sanitize blog IDs
+  const sanitizeBlogId = (id: string): string => {
+    return id.replace(/^new ObjectId\("(.+)"\)$/, '$1');
+  };
+
   // Refresh favorites when session changes
   useEffect(() => {
     if (session) {
@@ -51,7 +56,8 @@ export const FavoritesProvider = ({
 
   // Function to check if a blog is favorited
   const isFavorite = (blogId: string): boolean => {
-    return favoriteIds.includes(blogId);
+    const sanitizedId = sanitizeBlogId(blogId);
+    return favoriteIds.includes(sanitizedId);
   };
 
   // Function to refresh favorites from the API
@@ -63,7 +69,6 @@ export const FavoritesProvider = ({
       const res = await fetch('/api/blogs/favorite');
       
       if (!res.ok) {
-        // Provide more specific error messages based on status code
         let errorMessage = 'Failed to fetch favorites';
         
         switch (res.status) {
@@ -94,19 +99,29 @@ export const FavoritesProvider = ({
       const data = await res.json();
       const blogsList = convertBlogDocumentsToBlog(data.favorites || []);
       
-      setFavorites(blogsList);
-      setFavoriteIds(blogsList.map(blog => blog.id).filter(id => id && id.trim() !== ''));
+      // Ensure all blog IDs are properly sanitized
+      const sanitizedBlogsList = blogsList.map(blog => ({
+        ...blog,
+        id: blog.id ? sanitizeBlogId(blog.id) : blog.id
+      }));
+
+      // Only update state if we have valid data
+      if (Array.isArray(sanitizedBlogsList)) {
+        setFavorites(sanitizedBlogsList);
+        setFavoriteIds(sanitizedBlogsList
+          .map(blog => blog.id)
+          .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
+        );
+      }
     } catch (error) {
       console.error('Error fetching favorites:', error);
       
-      // Handle network errors specifically
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('Network error: Unable to connect to the server');
+      // Only reset favorites on authentication errors or when explicitly needed
+      if (error instanceof Error && 
+          (error.message.includes('authorized') || error.message.includes('forbidden'))) {
+        setFavorites([]);
+        setFavoriteIds([]);
       }
-      
-      // Reset favorites on error
-      setFavorites([]);
-      setFavoriteIds([]);
     } finally {
       setIsLoading(false);
     }
@@ -114,9 +129,19 @@ export const FavoritesProvider = ({
 
   // Function to toggle favorite status
   const toggleFavorite = async (blogId: string): Promise<void> => {
-    if (!session) {
-      // Handle unauthenticated users (redirect to login in the component)
+    if (!session || !blogId) {
       return;
+    }
+
+    const sanitizedId = sanitizeBlogId(blogId);
+    const wasFavorited = isFavorite(sanitizedId);
+    const originalFavorites = favorites;
+    const originalIds = favoriteIds;
+
+    // Optimistically update UI
+    if (wasFavorited) {
+      setFavoriteIds(prev => prev.filter(id => id !== sanitizedId));
+      setFavorites(prev => prev.filter(blog => blog.id !== sanitizedId));
     }
 
     setIsLoading(true);
@@ -126,11 +151,10 @@ export const FavoritesProvider = ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ blogId }),
+        body: JSON.stringify({ blogId: sanitizedId }),
       });
 
       if (!response.ok) {
-        // Provide more specific error messages based on status code
         let errorMessage = 'Failed to toggle favorite';
         
         switch (response.status) {
@@ -155,27 +179,27 @@ export const FavoritesProvider = ({
             }
         }
         
+        // Revert optimistic update on error
+        setFavorites(originalFavorites);
+        setFavoriteIds(originalIds);
+        
         throw new Error(errorMessage);
       }
 
-      // Update local state optimistically
-      if (isFavorite(blogId)) {
-        setFavoriteIds(prevIds => prevIds.filter(id => id !== blogId));
-        setFavorites(prevFavorites => prevFavorites.filter(blog => blog.id !== blogId));
-      } else {
-        // If adding to favorites, we'll refresh the whole list to get the full blog data
+      // If we're adding (not removing) a favorite, refresh to get the full blog data
+      if (!wasFavorited) {
         await refreshFavorites();
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
       
-      // Handle network errors specifically
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('Network error: Unable to connect to the server');
-      }
-      
       // Revert optimistic update on error
-      await refreshFavorites();
+      setFavorites(originalFavorites);
+      setFavoriteIds(originalIds);
+      
+      if (error instanceof Error) {
+        throw error; // Re-throw to let components handle the error
+      }
     } finally {
       setIsLoading(false);
     }

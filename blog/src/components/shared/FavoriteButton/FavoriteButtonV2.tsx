@@ -44,11 +44,19 @@ const FavoriteButtonV2 = React.memo(({
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const clickCountRef = useRef(0);
 
+  // Helper to validate and format blog ID
+  const sanitizeBlogId = useCallback((id: string | undefined): string | null => {
+    if (!id || id === 'undefined' || id === '') return null;
+    // Handle ObjectId string format or regular string ID
+    return id.toString().replace(/^new ObjectId\("(.+)"\)$/, '$1');
+  }, []);
+
   // Memoize favorite status with optimistic updates
   const isFavorited = useMemo(() => {
-    if (!blogId || blogId === 'undefined' || blogId === '') return false;
-    return optimisticState !== null ? optimisticState : isFavorite(blogId);
-  }, [blogId, isFavorite, optimisticState]);
+    const sanitizedId = sanitizeBlogId(blogId);
+    if (!sanitizedId) return false;
+    return optimisticState !== null ? optimisticState : isFavorite(sanitizedId);
+  }, [blogId, isFavorite, optimisticState, sanitizeBlogId]);
 
   // Get favorite count for this blog (if needed)
   const favoriteCount = useMemo(() => {
@@ -132,59 +140,39 @@ const FavoriteButtonV2 = React.memo(({
     
     if (isButtonLoading || disabled) return;
     
-    // Increment click count for testing
     clickCountRef.current += 1;
     
-    // Clear existing debounce
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
     
-    // Redirect to login if not authenticated
     if (!session) {
       const currentPath = router.asPath;
       router.push(`/auth/signin?callbackUrl=${encodeURIComponent(currentPath)}`);
       return;
     }
 
-    // Validate blog ID
-    if (!blogId || blogId === 'undefined' || blogId === '') {
+    const sanitizedId = sanitizeBlogId(blogId);
+    if (!sanitizedId) {
       console.error('Invalid blog ID for favorites:', blogId);
       return;
     }
 
-    // Optimistic update
-    const newState = !isFavorited;
-    setOptimisticState(newState);
     setIsProcessing(true);
-    setAnimationKey(prev => prev + 1);
+    setOptimisticState(!isFavorited);
     
-    // Debounced actual API call
-    debounceRef.current = setTimeout(async () => {
-      try {
-        await toggleFavorite(blogId);
-        
-        // Call the callback after successful toggle
-        if (onToggleFavorite) {
-          onToggleFavorite();
-        }
-        
-        // Reset optimistic state after successful API call
-        setOptimisticState(null);
-      } catch (error) {
-        console.error('Error toggling favorite:', error);
-        // Revert optimistic update on error
-        setOptimisticState(!newState);
-        
-        // Show error feedback (you can replace with toast)
-        if (typeof window !== 'undefined') {
-          console.warn('Failed to update favorite. Please try again.');
-        }
-      } finally {
-        setIsProcessing(false);
-      }
-    }, 300); // 300ms debounce
-  }, [isButtonLoading, disabled, session, blogId, toggleFavorite, onToggleFavorite, router, isFavorited]);
+    try {
+      await toggleFavorite(sanitizedId);
+      if (onToggleFavorite) onToggleFavorite();
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      setOptimisticState(null); // Reset optimistic state on error
+    } finally {
+      setIsProcessing(false);
+      // Reset optimistic state after animation completes
+      setTimeout(() => setOptimisticState(null), 300);
+    }
+  }, [isButtonLoading, disabled, session, blogId, router, isFavorited, toggleFavorite, onToggleFavorite, sanitizeBlogId]);
 
   // Cleanup debounce on unmount
   useEffect(() => {

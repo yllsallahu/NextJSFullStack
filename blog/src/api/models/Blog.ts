@@ -1,6 +1,48 @@
 import mongoose from 'mongoose';
 import { ObjectId } from 'mongodb';
 
+export interface Comment {
+  _id?: string;
+  content: string;
+  author: string;
+  createdAt?: Date;
+}
+
+export interface BlogDocument extends mongoose.Document {
+  id: string;
+  _id: mongoose.Types.ObjectId;
+  title: string;
+  content: string;
+  author: string | mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+  summary?: string;
+  isPublished?: boolean;
+  slug?: string;
+  views?: number;
+  likes?: string[];
+  comments?: Comment[];
+  tags?: string[];
+  imageUrl?: string;
+}
+
+export interface Blog {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  createdAt: Date;
+  updatedAt: Date;
+  tags: string[];
+  imageUrl?: string;
+  summary?: string;
+  isPublished: boolean;
+  slug: string;
+  views: number;
+  likes: string[];
+  comments: Comment[];
+}
+
 const CommentSchema = new mongoose.Schema({
   content: {
     type: String,
@@ -20,87 +62,68 @@ const CommentSchema = new mongoose.Schema({
 const BlogSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: true,
+    required: true
   },
   content: {
     type: String,
-    required: true,
+    required: true
   },
   author: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: true
   },
-  image: {
-    type: String, // URL to the uploaded image
-    required: false,
-  },
-  likes: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  comments: [CommentSchema],
   createdAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   },
   updatedAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
+  },
+  summary: {
+    type: String,
+    required: false
+  },
+  isPublished: {
+    type: Boolean,
+    default: false
+  },
+  slug: {
+    type: String,
+    required: false
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
+  likes: [{
+    type: String,
+    ref: 'User'
+  }],
+  comments: [CommentSchema],
+  tags: [{
+    type: String
+  }],
+  imageUrl: {
+    type: String
+  }
+}, {
+  toJSON: {
+    virtuals: true,
+    transform: function(doc, ret) {
+      ret.id = ret._id.toString();
+      delete ret.__v;
+      if (ret.author && typeof ret.author === 'object' && ret.author._id) {
+        ret.author = ret.author._id.toString();
+      }
+      if (Array.isArray(ret.likes)) {
+        ret.likes = ret.likes.map((like: any) => 
+          typeof like === 'object' && like._id ? like._id.toString() : like.toString()
+        );
+      }
+    }
   }
 });
 
-BlogSchema.methods.toggleLike = function(userId: string) {
-  const likes = this.likes.map((id: any) => id.toString());
-  const userIdStr = userId.toString();
-  
-  if (likes.includes(userIdStr)) {
-    this.likes = this.likes.filter((id: any) => id.toString() !== userIdStr);
-  } else {
-    this.likes.push(userId);
-  }
-  return this.save();
-};
-
-export interface Comment {
-  _id?: string;
-  content: string;
-  author: string;
-  createdAt?: Date;
-}
-
-export interface BlogDocument {
-  _id?: ObjectId;
-  title: string;
-  content: string;
-  author: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tags?: string[];
-  imageUrl?: string;
-  summary?: string;
-  isPublished: boolean;
-  slug: string;
-  views?: number;
-  likes: string[];
-  comments?: any[];
-}
-
-export interface Blog {
-  id: string;
-  title: string;
-  content: string;
-  author: string;
-  createdAt: Date;
-  updatedAt: Date;
-  tags: string[];
-  imageUrl?: string;
-  summary?: string;
-  isPublished: boolean;
-  slug: string;
-  views: number;
-  likes: string[];
-  comments: any[];
-}
-
-export default mongoose.models.Blog || mongoose.model('Blog', BlogSchema);
+export const Blog = mongoose.models.Blog || mongoose.model<BlogDocument>('Blog', BlogSchema);

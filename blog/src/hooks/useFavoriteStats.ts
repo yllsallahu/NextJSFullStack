@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFavorites } from '@/lib/contexts/FavoritesContext';
 import { Blog } from '@/api/models/Blog';
 
@@ -12,6 +12,8 @@ interface FavoriteStats {
   mostFavorited?: Blog | null;
   recentlyRemoved: string[];
 }
+
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
  * A custom hook for tracking and analyzing favorites statistics over time
@@ -28,84 +30,150 @@ export function useFavoriteStats(): FavoriteStats & { isLoading: boolean } {
     mostFavorited: null,
     recentlyRemoved: []
   });
-  
-  // Track removed favorites
-  const [previousFavorites, setPreviousFavorites] = useState<string[]>([]);
-  
+
+  // Get today's date at midnight in the user's timezone
+  const today = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
+
+  // Create a set of IDs for faster lookup
+  const previousFavoritesSet = useMemo(() => new Set<string>(), []);
+
+  // Memoize the current favorite IDs to avoid unnecessary recalculations
+  const currentFavoriteIds = useMemo(() => {
+    if (isLoading) return [];
+    return Array.from(new Set(
+      favorites
+        .map(blog => blog.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ));
+  }, [favorites, isLoading]);
+
+  // Memoize expensive tag counting logic
+  const calculateTagCounts = useCallback((blogs: Blog[]) => {
+    const counts: Record<string, number> = {};
+    blogs.forEach(blog => {
+      if (Array.isArray(blog.tags)) {
+        blog.tags.forEach(tag => {
+          if (typeof tag === 'string' && tag.trim()) {
+            counts[tag] = (counts[tag] || 0) + 1;
+          }
+        });
+      }
+    });
+    return counts;
+  }, []);
+
+  // Memoize expensive author counting logic
+  const calculateAuthorCounts = useCallback((blogs: Blog[]) => {
+    const counts: Record<string, number> = {};
+    blogs.forEach(blog => {
+      if (typeof blog.author === 'string' && blog.author.trim()) {
+        counts[blog.author] = (counts[blog.author] || 0) + 1;
+      }
+    });
+    return counts;
+  }, []);
+
+  // Calculate favorites by month with proper date handling
+  const calculateFavoritesByMonth = useCallback((blogs: Blog[]) => {
+    const months: Record<string, number> = {};
+    const processedDates = new Set<string>();
+
+    blogs.forEach(blog => {
+      if (!blog.createdAt) return;
+
+      try {
+        const date = new Date(blog.createdAt);
+        if (isNaN(date.getTime())) return;
+
+        const monthYear = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        
+        // Avoid duplicate counts
+        const dateKey = `${blog.id}-${monthYear}`;
+        if (processedDates.has(dateKey)) return;
+        
+        processedDates.add(dateKey);
+        months[monthYear] = (months[monthYear] || 0) + 1;
+      } catch (e) {
+        console.error('Invalid date format for blog:', blog.id, e);
+      }
+    });
+
+    return Object.entries(months)
+      .map(([month, count]) => ({ month, count }))
+      .sort((a, b) => {
+        const [monthA, yearA] = a.month.split(' ');
+        const [monthB, yearB] = b.month.split(' ');
+        
+        if (yearA !== yearB) return parseInt(yearB) - parseInt(yearA);
+        return monthNames.indexOf(monthB) - monthNames.indexOf(monthA);
+      });
+  }, []);
+
+  // Find the most favorited blog with proper validation
+  const findMostFavoritedBlog = useCallback((blogs: Blog[]) => {
+    if (blogs.length === 0) return null;
+
+    return blogs.reduce((most, current) => {
+      const currentLikes = Array.isArray(current.likes) ? current.likes.length : 0;
+      const mostLikes = most ? (Array.isArray(most.likes) ? most.likes.length : 0) : -1;
+      
+      return currentLikes > mostLikes ? current : most;
+    }, null as Blog | null);
+  }, []);
+
+  // Track removed favorites using Sets for better performance
+  const findRemovedFavorites = useCallback((current: string[], previousSet: Set<string>) => {
+    const currentSet = new Set(current);
+    return Array.from(previousSet).filter(id => !currentSet.has(id));
+  }, []);
+
+  // Count blogs added today with proper date validation
+  const countAddedToday = useCallback((blogs: Blog[], todayDate: Date) => {
+    return blogs.filter(blog => {
+      if (!blog.createdAt) return false;
+      try {
+        const createdAt = new Date(blog.createdAt);
+        return !isNaN(createdAt.getTime()) && createdAt >= todayDate;
+      } catch (e) {
+        console.error('Invalid date format for blog:', blog.id, e);
+        return false;
+      }
+    }).length;
+  }, []);
+
   // Update statistics whenever favorites change
   useEffect(() => {
     if (isLoading) return;
-    
-    // Deep analysis of favorites
-    const analyze = () => {
-      // Track recently removed favorites
-      const currentFavoriteIds = favorites.map(blog => blog.id || '').filter(Boolean);
-      const removed = previousFavorites.filter(id => !currentFavoriteIds.includes(id));
+
+    try {
+      // Find removed favorites
+      const removed = findRemovedFavorites(currentFavoriteIds, previousFavoritesSet);
       
-      // Count favorites added today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const addedToday = favorites.filter(blog => {
-        const createdAt = blog.createdAt ? new Date(blog.createdAt) : null;
-        return createdAt && createdAt >= today;
-      }).length;
-      
-      // Analyze tags
-      const tagCounts: Record<string, number> = {};
-      favorites.forEach(blog => {
-        if (blog.tags) {
-          blog.tags.forEach(tag => {
-            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-          });
-        }
-      });
-      
+      // Update previous favorites set for next comparison
+      previousFavoritesSet.clear();
+      currentFavoriteIds.forEach(id => previousFavoritesSet.add(id));
+
+      // Calculate all stats
+      const addedToday = countAddedToday(favorites, today);
+      const tagCounts = calculateTagCounts(favorites);
       const commonTags = Object.entries(tagCounts)
         .map(([tag, count]) => ({ tag, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
-      
-      // Analyze authors
-      const authorCounts: Record<string, number> = {};
-      favorites.forEach(blog => {
-        if (blog.author) {
-          authorCounts[blog.author] = (authorCounts[blog.author] || 0) + 1;
-        }
-      });
-      
+
+      const authorCounts = calculateAuthorCounts(favorites);
       const favoriteAuthors = Object.entries(authorCounts)
         .map(([author, count]) => ({ author, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 3);
-      
-      // Analyze by month
-      const months: Record<string, number> = {};
-      favorites.forEach(blog => {
-        if (blog.createdAt) {
-          const date = new Date(blog.createdAt);
-          const monthYear = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-          months[monthYear] = (months[monthYear] || 0) + 1;
-        }
-      });
-      
-      const favoritesByMonth = Object.entries(months)
-        .map(([month, count]) => ({ month, count }))
-        .sort((a, b) => {
-          // Sort by date (assuming format "MMM YYYY")
-          const [monthA, yearA] = a.month.split(' ');
-          const [monthB, yearB] = b.month.split(' ');
-          
-          if (yearA !== yearB) return parseInt(yearB) - parseInt(yearA);
-          
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          return monthNames.indexOf(monthB) - monthNames.indexOf(monthA);
-        });
-      
-      // Find most favorited blog (could be based on likes or other metrics)
-      const mostFavorited = [...favorites].sort((a, b) => 
-        (b.likes?.length || 0) - (a.likes?.length || 0)
-      )[0] || null;
-      
+
+      const favoritesByMonth = calculateFavoritesByMonth(favorites);
+      const mostFavorited = findMostFavoritedBlog(favorites);
+
       setStats({
         count: favorites.length,
         addedToday,
@@ -116,14 +184,24 @@ export function useFavoriteStats(): FavoriteStats & { isLoading: boolean } {
         mostFavorited,
         recentlyRemoved: removed
       });
-      
-      // Update previous favorites for next comparison
-      setPreviousFavorites(currentFavoriteIds);
-    };
-    
-    analyze();
-  }, [favorites, isLoading, previousFavorites]);
-  
+    } catch (error) {
+      console.error('Error calculating favorite stats:', error);
+      // Keep the previous stats in case of error
+    }
+  }, [
+    favorites,
+    isLoading,
+    today,
+    currentFavoriteIds,
+    previousFavoritesSet,
+    calculateTagCounts,
+    calculateAuthorCounts,
+    calculateFavoritesByMonth,
+    findMostFavoritedBlog,
+    findRemovedFavorites,
+    countAddedToday
+  ]);
+
   return {
     ...stats,
     isLoading

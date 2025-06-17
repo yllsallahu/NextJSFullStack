@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Blog } from '../api/models/Blog';
 import { useFavorites } from '../lib/contexts/FavoritesContext';
 import { useSession } from 'next-auth/react';
 
 interface UseUserFavoritesReturn {
-  favorites: any;
+  favorites: Blog[];
   favoriteCount: number;
   recentFavorites: Blog[];
   hasAnyFavorites: boolean;
@@ -29,50 +29,102 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
 
   // Update recent favorites whenever favorites list changes
   useEffect(() => {
-    // Sort by added time (if we had it) or just take the first few
-    const recent = [...favorites].slice(0, limit);
-    setRecentFavorites(recent);
+    // Sort by createdAt date if available
+    const sorted = [...favorites]
+      .filter(blog => blog && blog.id && typeof blog.id === 'string')
+      .sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        return 0;
+      })
+      .slice(0, limit);
+    
+    setRecentFavorites(sorted);
   }, [favorites, limit]);
 
-  // Get favorites by author
+  // Get favorites by author with proper ID handling
   const getFavoritesByAuthor = useCallback(
     (authorId: string) => {
-      return favorites.filter(blog => blog.author === authorId);
+      return favorites.filter(blog => 
+        blog && 
+        typeof blog.author === 'string' && 
+        blog.author === authorId
+      );
     },
     [favorites]
   );
 
-  // Get favorites by tag (assuming we add a tags property to blogs)
+  // Get favorites by tag with validation
   const getFavoritesByTag = useCallback(
     (tag: string) => {
-      return favorites.filter(blog => blog.tags?.includes(tag));
+      return favorites.filter(blog => 
+        blog && 
+        Array.isArray(blog.tags) && 
+        blog.tags.includes(tag)
+      );
     },
     [favorites]
   );
 
-  // Add to favorites
+  // Add to favorites with validation
   const addToFavorites = useCallback(
     async (blogId: string) => {
-      if (isFavorite(blogId)) return;
-      await toggleFavorite(blogId);
+      if (!blogId || typeof blogId !== 'string') {
+        console.error('Invalid blog ID:', blogId);
+        return;
+      }
+
+      const sanitizedId = blogId.replace(/^new ObjectId\("(.+)"\)$/, '$1');
+      if (isFavorite(sanitizedId)) return;
+      
+      try {
+        await toggleFavorite(sanitizedId);
+      } catch (error) {
+        console.error('Error adding to favorites:', error);
+      }
     },
     [isFavorite, toggleFavorite]
   );
 
-  // Remove from favorites
+  // Remove from favorites with validation
   const removeFromFavorites = useCallback(
     async (blogId: string) => {
-      if (!isFavorite(blogId)) return;
-      await toggleFavorite(blogId);
+      if (!blogId || typeof blogId !== 'string') {
+        console.error('Invalid blog ID:', blogId);
+        return;
+      }
+
+      const sanitizedId = blogId.replace(/^new ObjectId\("(.+)"\)$/, '$1');
+      if (!isFavorite(sanitizedId)) return;
+      
+      try {
+        await toggleFavorite(sanitizedId);
+      } catch (error) {
+        console.error('Error removing from favorites:', error);
+      }
     },
     [isFavorite, toggleFavorite]
   );
 
+  // Effect to refresh favorites when session changes
+  useEffect(() => {
+    if (session) {
+      refreshFavorites().catch(error => {
+        console.error('Error refreshing favorites:', error);
+      });
+    }
+  }, [session, refreshFavorites]);
+
+  const validFavorites = useMemo(() => 
+    favorites.filter(blog => blog && blog.id && typeof blog.id === 'string'),
+  [favorites]);
+
   return {
-    favorites, // Add the favorites array here
-    favoriteCount: favorites.length,
+    favorites: validFavorites,
+    favoriteCount: validFavorites.length,
     recentFavorites,
-    hasAnyFavorites: favorites.length > 0,
+    hasAnyFavorites: validFavorites.length > 0,
     mostRecentFavorite: recentFavorites[0] || null,
     getFavoritesByAuthor,
     getFavoritesByTag,

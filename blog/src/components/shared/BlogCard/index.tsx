@@ -1,6 +1,6 @@
 import { useSession } from 'next-auth/react';
 import { Blog, Comment } from '../../../api/models/Blog';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import FavoriteButtonV2 from '../FavoriteButton/FavoriteButtonV2';
@@ -71,6 +71,15 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
   const [commentsUpdated, setCommentsUpdated] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Ensure we have a valid blog ID
+  const blogId = useMemo(() => {
+    if (!blog.id || blog.id === 'undefined') {
+      console.error('Invalid blog ID in BlogCard:', blog);
+      return null;
+    }
+    return blog.id.toString().replace(/^new ObjectId\("(.+)"\)$/, '$1');
+  }, [blog.id]);
+
   // Use custom hooks for default actions if not provided through props
   const blogActions = useBlogActions({ onUpdate });
   const handleLikeInternal = onLike || blogActions.handleLike;
@@ -99,7 +108,9 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
     if (onUpdate) onUpdate();
   };
   const handleLikeClick = async () => {
-    const result = await handleLikeInternal(blog.id as string);
+    if (!blogId) return;
+    
+    const result = await handleLikeInternal(blogId);
     if (result && !result.error) {
       setHasLiked(!hasLiked);
       setLikeCount((prev) => hasLiked ? prev - 1 : prev + 1);
@@ -140,12 +151,17 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
       )}
       
       <div className="p-4">
-        <Link href={`/blogs/${blog.id}`}>
-          <h2 className="text-xl text-black font-bold mb-2 hover:text-indigo-600">
-            {blog.title}
-          </h2>
-        </Link>
-          <div className="flex justify-between items-center text-black text-sm mb-4">
+        {blogId ? (
+          <Link href={`/blogs/${blogId}`}>
+            <h2 className="text-xl text-black font-bold mb-2 hover:text-indigo-600">
+              {blog.title}
+            </h2>
+          </Link>
+        ) : (
+          <h2 className="text-xl text-black font-bold mb-2">{blog.title}</h2>
+        )}
+
+        <div className="flex justify-between items-center text-black text-sm mb-4">
           <div>
             {showAuthor && <p>By {blog.author || 'Anonymous'}</p>}
             <p>{blog.createdAt && formatDate(blog.createdAt)}</p>
@@ -218,9 +234,9 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
             <span>{blog.comments?.length || 0}</span>
           </button>
           
-          {session && showFavoriteButton && (
+          {session && showFavoriteButton && blogId && (
             <FavoriteButtonV2 
-              blogId={blog.id as string} 
+              blogId={blogId}
               onToggleFavorite={onUpdate}
               size="md"
               variant="default"
