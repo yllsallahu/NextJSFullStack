@@ -211,7 +211,7 @@ export default function CreateBlogForm() {
                 />
                 <button
                   type="button"
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
+                  className="absolute -top-2 -right-2 bg-red-500 text-black rounded-full w-5 h-5 flex items-center justify-center"
                   onClick={() => {
                     setPreviewUrl(null);
                     setImageFile(null);

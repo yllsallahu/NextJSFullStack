@@ -127,7 +127,7 @@ export default function SignIn({ csrfToken }: { csrfToken: string | null }) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-black text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="you@example.com"
             />
           </div>
@@ -142,7 +142,7 @@ export default function SignIn({ csrfToken }: { csrfToken: string | null }) {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-black text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
+              className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-black focus:outline-none focus:ring-green-500 focus:border-green-500"
               placeholder="••••••••"
             />
           </div>
