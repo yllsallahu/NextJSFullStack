@@ -137,18 +137,18 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
 }
 
 // In the toggleFavorite function, handle the loading state gracefully
-const toggleFavorite = useCallback(async (blogId: string): Promise<void> => {
-    const authStatus = session?.user ? 'authenticated' : 'unauthenticated'; // Correct authStatus definition
+// const toggleFavorite = useCallback(async (blogId: string): Promise<void> => {
+//     const authStatus = session?.user ? 'authenticated' : 'unauthenticated'; // Correct authStatus definition
 
-    if (!session) {
-      console.warn('Session is not available, skipping favorite toggle');
-      return; // Gracefully handle missing session
-    }
+//     if (!session) {
+//       console.warn('Session is not available, skipping favorite toggle');
+//       return; // Gracefully handle missing session
+//     }
 
-    if (authStatus === 'unauthenticated') {
-      console.error('User is not authenticated');
-      return;
-    }
+//     if (authStatus === 'unauthenticated') {
+//       console.error('User is not authenticated');
+//       return;
+//     }
 
-    // ...existing logic...
-  }, [session]);
+//     // ...existing logic...
+//   }, [session]);
