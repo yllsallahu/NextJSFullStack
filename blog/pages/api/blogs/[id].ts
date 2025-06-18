@@ -1,8 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from 'next-auth/jwt';
-import { getBlogById, likeBlog, deleteBlog, updateBlog } from 'api/services/Blog';
-import { getUserById } from 'api/services/User';
-import { convertBlogDocumentsToBlog } from 'api/utils/blogUtils';
+import { getBlogById, likeBlog, deleteBlog, updateBlog } from '../../../src/api/services/Blog';
+import { getUserById } from '../../../src/api/services/User';
+import { convertBlogDocumentsToBlog } from '../../../src/api/utils/blogUtils';
 import { ObjectId } from 'mongodb';
 
 export default async function handler(

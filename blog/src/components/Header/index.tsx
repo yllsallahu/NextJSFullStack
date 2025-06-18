@@ -199,7 +199,7 @@ export default function Header() {
                         </Link>
                       )}
                       <button
-                        onClick={() => signOut()}
+                        onClick={() => signOut({ callbackUrl: "/auth/signin", redirect: true })}
                         className="w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100"
                       >
                         Sign Out
@@ -346,7 +346,7 @@ export default function Header() {
                     </Link>
                   )}
                   <button
-                    onClick={() => signOut()}
+                    onClick={() => signOut({ callbackUrl: "/auth/signin", redirect: true })}
                     className="block w-full text-left px-3 py-2 text-gray-600 hover:text-green-600"
                   >
                     Sign Out

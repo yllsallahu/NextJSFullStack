@@ -1,16 +1,16 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import useFetch from "hooks/useFetch";
-import type { Blog } from "api/models/Blog";
-import BlogCard from "components/shared/BlogCard";
-import Header from "components/Header";
-import Footer from "components/Footer";
+import useFetch from "../src/hooks/useFetch";
+import type { Blog } from "../src/api/models/Blog";
+import BlogCard from "../src/components/shared/BlogCard";
+import Header from "../src/components/Header";
+import Footer from "../src/components/Footer";
 import { useRouter } from "next/router";
 import Slider from "react-slick";
 import { useEffect, useState } from "react";
 import Head from "next/head";
-import { useBlogActions } from "hooks/useBlogActions";
-import { FavoritesProvider } from "lib/contexts/FavoritesContext";
+import { useBlogActions } from "../src/hooks/useBlogActions";
+import { FavoritesProvider } from "../src/lib/contexts/FavoritesContext";
 
 // Need to import slick styles
 import "slick-carousel/slick/slick.css";

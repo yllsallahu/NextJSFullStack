@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from 'next-auth/jwt';
-import { getUserById } from 'api/services/User';
-import { getBlogById, deleteComment } from 'api/services/Blog';
+import { getUserById } from '../../../../src/api/services/User';
+import { getBlogById, deleteComment } from '../../../../src/api/services/Blog';
 import { ObjectId } from 'mongodb';
 
 export default async function handler(

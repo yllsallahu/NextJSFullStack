@@ -6,16 +6,21 @@ export function convertBlogDocumentsToBlog(docs: BlogDocument[]): Blog[] {
     id: doc._id?.toString() || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     title: doc.title,
     content: doc.content,
-    author: doc.author,
+    author: doc.author?.toString() || '',
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     tags: doc.tags || [],
     imageUrl: doc.imageUrl,
     summary: doc.summary,
     isPublished: doc.isPublished,
-    slug: doc.slug,
+    slug: doc.slug || '',
     views: doc.views || 0,
     likes: doc.likes || [],
-    comments: doc.comments || []
+    comments: (doc.comments || []).map(comment => ({
+      _id: comment._id?.toString() || '',
+      content: comment.content || '',
+      author: comment.author?.toString() || '',
+      createdAt: comment.createdAt || new Date()
+    }))
   }));
 } 

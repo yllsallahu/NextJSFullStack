@@ -221,6 +221,97 @@ export async function likeBlog(blogId: string, userId: string) {
   }
 }
 
+export async function getBlogById(id: string): Promise<BlogDocument | null> {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    const blogObjectId = safeObjectId(id);
+    if (!blogObjectId) {
+      throw new Error(`Invalid blog ID: ${id}`);
+    }
+    
+    const blog = await db.collection<BlogDocument>("blogs").findOne({ _id: blogObjectId });
+    return blog;
+  } catch (error) {
+    console.error('Error in getBlogById:', error);
+    throw error;
+  }
+}
+
+export async function updateBlog(id: string, updateData: Partial<BlogDocument>): Promise<any> {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    const blogObjectId = safeObjectId(id);
+    if (!blogObjectId) {
+      throw new Error(`Invalid blog ID: ${id}`);
+    }
+    
+    const result = await db.collection<BlogDocument>("blogs").updateOne(
+      { _id: blogObjectId },
+      {
+        $set: {
+          ...updateData,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    return result;
+  } catch (error) {
+    console.error('Error in updateBlog:', error);
+    throw error;
+  }
+}
+
+export async function deleteBlog(id: string): Promise<any> {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    const blogObjectId = safeObjectId(id);
+    if (!blogObjectId) {
+      throw new Error(`Invalid blog ID: ${id}`);
+    }
+    
+    const result = await db.collection<BlogDocument>("blogs").deleteOne({ _id: blogObjectId });
+    return result;
+  } catch (error) {
+    console.error('Error in deleteBlog:', error);
+    throw error;
+  }
+}
+
+export async function deleteComment(blogId: string, commentId: string): Promise<any> {
+  try {
+    const client = await clientPromise;
+    const db = client.db("myapp");
+    
+    const blogObjectId = safeObjectId(blogId);
+    const commentObjectId = safeObjectId(commentId);
+    
+    if (!blogObjectId || !commentObjectId) {
+      throw new Error('Invalid blog ID or comment ID');
+    }
+    
+    const result = await db.collection<BlogDocument>("blogs").updateOne(
+      { _id: blogObjectId },
+      { $pull: { comments: { _id: commentObjectId } } }
+    );
+    
+    if (result.matchedCount === 0) {
+      throw new Error('Blog not found');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in deleteComment:', error);
+    throw error;
+  }
+}
+
 export async function getBlogs(): Promise<BlogDocument[]> {
   try {
     const client = await clientPromise;

@@ -24,7 +24,7 @@ interface UseUserFavoritesReturn {
  */
 export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
   const { data: session } = useSession();
-  const { favorites, isLoading, toggleFavorite, isFavorite, refreshFavorites } = useFavorites();
+  const { favorites, isLoading, toggleFavorite, isFavorite } = useFavorites();
   const [recentFavorites, setRecentFavorites] = useState<Blog[]>([]);
 
   // Update recent favorites whenever favorites list changes
@@ -41,7 +41,7 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
       .slice(0, limit);
     
     setRecentFavorites(sorted);
-  }, []);
+  }, [favorites, limit]); // Only depend on favorites and limit
 
   // Get favorites by author with proper ID handling
   const getFavoritesByAuthor = useCallback(
@@ -106,15 +106,6 @@ export function useUserFavorites(limit: number = 3): UseUserFavoritesReturn {
     },
     [isFavorite, toggleFavorite]
   );
-
-  // Effect to refresh favorites when session changes
-  useEffect(() => {
-    if (session) {
-      refreshFavorites().catch(error => {
-        console.error('Error refreshing favorites:', error);
-      });
-    }
-  }, []);
 
   const validFavorites = useMemo(() => 
     favorites.filter(blog => blog && blog.id && typeof blog.id === 'string'),

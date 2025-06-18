@@ -69,12 +69,16 @@ export const useFavorites = () => {
   return context;
 };
 
-export function FavoritesProvider({ children }: { children: React.ReactNode }) {
+export function FavoritesProvider({ children, initialFavorites = [], initialFavoriteIds = [] }: { 
+  children: React.ReactNode;
+  initialFavorites?: Blog[];
+  initialFavoriteIds?: string[];
+}) {
   const { data: session, status: authStatus } = useSession();
-  const [favorites, setFavorites] = useState<BlogWithComments[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<BlogWithComments[]>(initialFavorites);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(initialFavoriteIds);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastError, setLastError] = useState<Error | null>(null);
+  const [hasInitiallyFetched, setHasInitiallyFetched] = useState(false);
 
   // Helper to sanitize blog IDs
   const sanitizeBlogId = useCallback((id: string): string => {
@@ -126,47 +130,35 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     return favoriteIds.includes(sanitizedId);
   }, [favoriteIds, sanitizeBlogId, authStatus]);
 
-  // Refresh favorites list with better error handling
+  // Refresh favorites list - FIXED to prevent infinite loops
   const refreshFavorites = useCallback(async () => {
-    // Skip fetch if auth status is loading or unauthenticated
-    if (authStatus === 'loading' || authStatus === 'unauthenticated') {
+    // Skip if not authenticated
+    if (authStatus !== 'authenticated') {
       setFavorites([]);
       setFavoriteIds([]);
+      setHasInitiallyFetched(true);
       return;
     }
 
-    // Don't refetch if already loading
-    if (isLoading) return;
+    // Prevent multiple simultaneous requests
+    if (isLoading) {
+      return;
+    }
 
     setIsLoading(true);
-    setLastError(null);
 
     try {
       const res = await fetch('/api/blogs/favorite');
 
-      // Handle specific error cases without throwing
-      if (res.status === 401 || res.status === 403) {
-        console.warn('Unauthorized access to favorites API');
+      if (!res.ok) {
+        console.warn('Failed to fetch favorites:', res.status);
         setFavorites([]);
         setFavoriteIds([]);
-        setIsLoading(false); // Ensure loading state is reset
         return;
-      }
-
-      if (!res.ok) {
-        let errorMessage = 'Failed to fetch favorites';
-        try {
-          const errorData = await res.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // If we can't parse error response, use default message
-        }
-        throw new Error(errorMessage);
       }
 
       const data = await res.json() as FavoriteResponseData;
 
-      // Handle empty or invalid response gracefully
       if (!data || !Array.isArray(data.favorites)) {
         setFavorites([]);
         setFavoriteIds([]);
@@ -182,37 +174,37 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
       setFavorites(validBlogs);
       setFavoriteIds(validBlogs.map(blog => blog.id));
+      setHasInitiallyFetched(true);
 
     } catch (error) {
       console.error('Error fetching favorites:', error);
-      setLastError(error instanceof Error ? error : new Error('Unknown error'));
-
-      // Don't reset favorites on network errors to prevent UI flashing
-      if (error instanceof Error && 
-          (error.message.includes('unauthorized') || 
-           error.message.includes('forbidden'))) {
-        setFavorites([]);
-        setFavoriteIds([]);
-      }
+      setFavorites([]);
+      setFavoriteIds([]);
+      setHasInitiallyFetched(true);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [authStatus, isLoading, processBlogData]);
 
-  // Toggle favorite status with better error handling
+  // Toggle favorite status with optimistic updates
   const toggleFavorite = useCallback(async (blogId: string): Promise<void> => {
-    if (authStatus === 'loading') {
-      throw new Error('Authentication state is loading');
-    }
-
-    if (authStatus === 'unauthenticated') {
-      // Instead of throwing, we'll let the component handle the redirect
+    if (authStatus !== 'authenticated') {
+      console.warn('User not authenticated');
       return;
     }
 
     const sanitizedId = sanitizeBlogId(blogId);
     if (!sanitizedId) {
       throw new Error('Invalid blog ID');
+    }
+
+    // Optimistic update
+    const currentIsFavorite = favoriteIds.includes(sanitizedId);
+    if (currentIsFavorite) {
+      setFavoriteIds(prev => prev.filter(id => id !== sanitizedId));
+      setFavorites(prev => prev.filter(blog => blog.id !== sanitizedId));
+    } else {
+      setFavoriteIds(prev => [...prev, sanitizedId]);
     }
 
     try {
@@ -222,39 +214,46 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ blogId: sanitizedId })
       });
 
-      if (res.status === 401 || res.status === 403) {
-        setFavorites([]);
-        setFavoriteIds([]);
-        return;
-      }
-
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to toggle favorite status');
+        // Revert optimistic update on error
+        if (currentIsFavorite) {
+          setFavoriteIds(prev => [...prev, sanitizedId]);
+        } else {
+          setFavoriteIds(prev => prev.filter(id => id !== sanitizedId));
+          setFavorites(prev => prev.filter(blog => blog.id !== sanitizedId));
+        }
+        throw new Error('Failed to toggle favorite');
       }
 
-      // Only refresh if the toggle was successful
-      await refreshFavorites();
+      // If we added a favorite, we might want to refresh to get the full blog data
+      if (!currentIsFavorite) {
+        // Don't call refreshFavorites here to avoid loops, just keep the optimistic update
+      }
+
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      setLastError(error instanceof Error ? error : new Error('Unknown error'));
+      // Revert optimistic update on error
+      if (currentIsFavorite) {
+        setFavoriteIds(prev => [...prev, sanitizedId]);
+      } else {
+        setFavoriteIds(prev => prev.filter(id => id !== sanitizedId));
+        setFavorites(prev => prev.filter(blog => blog.id !== sanitizedId));
+      }
       throw error;
     }
-  }, []);
+  }, [authStatus, sanitizeBlogId, favoriteIds]);
 
-  // Initial fetch and auth state changes
+  // ONE TIME ONLY initial fetch when authentication is ready
   useEffect(() => {
-    // Skip initial fetch while auth is loading
-    if (authStatus === 'loading') return;
-    
-    if (authStatus === 'authenticated') {
+    // Only fetch once when auth status changes to authenticated and we haven't fetched yet
+    if (authStatus === 'authenticated' && !hasInitiallyFetched && !isLoading) {
       refreshFavorites();
-    } else {
-      // Clear favorites when explicitly not authenticated
+    } else if (authStatus === 'unauthenticated') {
       setFavorites([]);
       setFavoriteIds([]);
+      setHasInitiallyFetched(true);
     }
-  }, []);
+  }, [authStatus, hasInitiallyFetched, isLoading]); // REMOVED refreshFavorites from deps
 
   const value = {
     favorites,

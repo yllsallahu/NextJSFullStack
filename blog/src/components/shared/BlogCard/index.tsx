@@ -97,7 +97,7 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
 
   useEffect(() => {
     if (session?.user?.favorites) {
-      blog.isFavorited = session.user.favorites.includes(blogId);
+      blog.isFavorited = blogId ? session.user.favorites.includes(blogId) : false;
     }
   }, [session?.user?.favorites, blogId]);
 
@@ -209,10 +209,7 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
     return comment._id ? comment._id.toString() : undefined;
   };
 
-  const isFavorited = useMemo(() => {
-    const favorites = session?.user?.favorites || [];
-    return favorites.includes(blogId);
-  }, [session?.user?.favorites, blogId]);
+  // Remove local favorite state management - let FavoriteButtonV2 handle it through context
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -315,7 +312,6 @@ export default function BlogCard({ blog, onLike, onEdit, onDelete, onUpdate, sho
           {session && showFavoriteButton && blogId && (
             <FavoriteButtonV2 
               blogId={blogId}
-              isFavorited={blog.isFavorited} // Pass favorited state
               onToggleFavorite={onUpdate}
             />
           )}

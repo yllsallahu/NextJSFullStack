@@ -179,7 +179,7 @@ export default function CreateBlogForm() {
         </div>
         
         <div className="mb-6">
-          <label htmlFor="image" className="block text-gray-800 font-medium mb-2">
+          <label htmlFor="image" className="block text-black-800 font-medium mb-2">
             Featured Image
           </label>
           <div className="flex items-center">
@@ -195,7 +195,7 @@ export default function CreateBlogForm() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md mr-4 transition-colors"
+              className="bg-black-200 hover:bg-black-300 text-black-800 py-2 px-4 rounded-md mr-4 transition-colors"
               disabled={isSubmitting}
             >
               Select Image

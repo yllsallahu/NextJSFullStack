@@ -1,17 +1,10 @@
 import { useSession } from 'next-auth/react';
 import { useFavorites } from '../src/lib/contexts/FavoritesContext';
-import { useEffect } from 'react';
 import MainLayout from '../src/components/MainLayout';
 
 export default function TestFavorites() {
   const { data: session } = useSession();
-  const { favorites, isLoading, toggleFavorite, isFavorite, refreshFavorites } = useFavorites();
-
-  useEffect(() => {
-    if (session) {
-      refreshFavorites();
-    }
-  }, [session, refreshFavorites]);
+  const { favorites, isLoading, toggleFavorite, isFavorite } = useFavorites();
 
   const handleToggleFavorite = async (blogId: string) => {
     try {

@@ -9,6 +9,9 @@ interface FavoriteButtonProps {
   isFavorited?: boolean; // Add isFavorited prop
   onToggleFavorite?: () => void;
   disabled?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'minimal' | 'outlined' | 'ghost' | 'pill';
+  showText?: boolean;
 }
 
 // Performance optimizations
@@ -17,6 +20,9 @@ const FavoriteButtonV2 = React.memo(({
   isFavorited = false, // Default to false
   onToggleFavorite, 
   disabled = false,
+  size = 'md',
+  variant = 'default',
+  showText = false,
 }: FavoriteButtonProps) => {
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
@@ -106,9 +112,9 @@ const FavoriteButtonV2 = React.memo(({
     none: ''
   };
 
-  const config = sizeConfig.md;
-  const styles = variantStyles.default;
-  const isButtonLoading = contextLoading || isProcessing;
+  const config = sizeConfig[size];
+  const styles = variantStyles[variant];
+  const isButtonLoading = isProcessing; // Remove contextLoading to prevent infinite loading
 
   // Enhanced click handler with better auth state handling
   const handleFavoriteClick = useCallback(async (e: React.MouseEvent) => {
@@ -150,15 +156,20 @@ const FavoriteButtonV2 = React.memo(({
     try {
       await toggleFavorite(sanitizedId);
       if (onToggleFavorite) onToggleFavorite();
+      
+      // Reset optimistic state after successful toggle
+      debounceRef.current = setTimeout(() => {
+        setOptimisticState(null);
+      }, 100);
     } catch (error) {
       console.error('Error toggling favorite:', error);
       setOptimisticState(null);
-      toast.error('Failed to update favorite status');
+      // Don't show toast error for auth loading states
+      if (!(error instanceof Error && error.message?.includes('loading'))) {
+        toast.error('Failed to update favorite status');
+      }
     } finally {
       setIsProcessing(false);
-      debounceRef.current = setTimeout(() => {
-        setOptimisticState(null);
-      }, 300);
     }
   }, [
     isButtonLoading, 
@@ -168,7 +179,8 @@ const FavoriteButtonV2 = React.memo(({
     router,
     toggleFavorite,
     onToggleFavorite,
-    sanitizeBlogId
+    sanitizeBlogId,
+    favoritedState
   ]);
 
   // Reset redirect flag when auth status changes
@@ -187,18 +199,92 @@ const FavoriteButtonV2 = React.memo(({
     };
   }, []);
 
+  const currentlyFavorited = favoritedState();
+  
+  const getButtonClasses = () => {
+    let classes = `${config.button} ${styles.base}`;
+    
+    if (isButtonLoading) {
+      classes += ` ${styles.loading}`;
+    } else if (currentlyFavorited) {
+      classes += ` ${styles.favorited}`;
+    } else {
+      classes += ` ${styles.unfavorited}`;
+    }
+    
+    classes += ` focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50`;
+    
+    return classes;
+  };
+
+  const getButtonText = () => {
+    if (isButtonLoading) return 'Loading...';
+    return currentlyFavorited ? 'Favorited' : 'Favorite';
+  };
+
+  const renderIcon = () => {
+    if (isButtonLoading) {
+      return (
+        <svg 
+          className={`${config.icon} animate-spin`} 
+          fill="none" 
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle 
+            className="opacity-25" 
+            cx="12" 
+            cy="12" 
+            r="10" 
+            stroke="currentColor" 
+            strokeWidth="4"
+          />
+          <path 
+            className="opacity-75" 
+            fill="currentColor" 
+            d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+      );
+    }
+
+    return (
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        viewBox="0 0 24 24" 
+        fill={currentlyFavorited ? "currentColor" : "none"} 
+        stroke="currentColor" 
+        className={`${config.icon} transition-all duration-200`}
+        aria-hidden="true"
+      >
+        <path 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          strokeWidth={currentlyFavorited ? "0" : "1.5"} 
+          d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" 
+        />
+      </svg>
+    );
+  };
+
   return (
     <button
       onClick={handleFavoriteClick}
       disabled={isButtonLoading || disabled}
-      className={`p-2 rounded-full border transition-all duration-300 ease-out ${isFavorited ? 'text-yellow-500 bg-yellow-50 border-yellow-200' : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 hover:border-yellow-200'} focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-opacity-60`}
-      aria-label="Add to favorites"
-      title="Add to favorites"
+      className={getButtonClasses()}
+      aria-label={currentlyFavorited ? "Remove from favorites" : "Add to favorites"}
+      title={currentlyFavorited ? "Remove from favorites" : "Add to favorites"}
       type="button"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-      </svg>
+      <div className={`flex items-center ${showText ? config.gap : ''}`}>
+        {renderIcon()}
+        
+        {showText && (
+          <span className={`${config.text} font-medium`}>
+            {getButtonText()}
+          </span>
+        )}
+      </div>
     </button>
   );
 });

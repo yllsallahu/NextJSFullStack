@@ -1,6 +1,5 @@
 import { GetServerSideProps } from 'next';
 import { getSession } from 'next-auth/react';
-import { useEffect } from 'react';
 import MainLayout from '../../src/components/MainLayout';
 import BlogCard from '../../src/components/shared/BlogCard';
 import { Blog } from '../../src/api/models/Blog';
@@ -16,16 +15,18 @@ interface FavoritesPageProps {
 function FavoritesContent() {
   const { favorites, isLoading, refreshFavorites } = useFavorites();
 
-  // Fetch favorites on component mount
-  useEffect(() => {
-    refreshFavorites();
-  }, []);
-
   return (
     <MainLayout>
       <div className="container mx-auto py-8 px-4">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-black">My Favorite Blogs</h1>
+          <button
+            onClick={refreshFavorites}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Loading...' : 'Refresh'}
+          </button>
         </div>
 
         {isLoading ? (
@@ -63,22 +64,18 @@ function FavoritesContent() {
 
 export default function FavoritesPage({ initialFavorites, initialFavoriteIds }: FavoritesPageProps) {
   return (
-    <FavoritesProvider>
+    <FavoritesProvider initialFavorites={initialFavorites} initialFavoriteIds={initialFavoriteIds}>
       <FavoritesContent />
     </FavoritesProvider>
   );
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  // Unified build-time detection logic
+  // Build-time detection
   const isBuildTime = typeof window === 'undefined' && (
-    // During Vercel build process (using VERCEL_URL availability as indicator)
     process.env.VERCEL === '1' && !process.env.VERCEL_URL ||
-    // During CI builds
     process.env.CI === 'true' ||
-    // During npm run build without database
     (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) ||
-    // Explicit build flag
     process.env.NEXT_PHASE === 'phase-production-build'
   );
 
@@ -103,7 +100,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 
   try {
-    // Use absolute URL with base URL
     const baseUrl = process.env.NEXTAUTH_URL || `https://${context.req.headers.host}`;
     const res = await fetch(`${baseUrl}/api/blogs/favorite`, {
       headers: {
@@ -113,7 +109,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
     if (!res.ok) {
       console.error('Failed to fetch favorites, status:', res.status);
-      // Return empty data rather than throwing an error
       return {
         props: {
           initialFavorites: [],
@@ -125,7 +120,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     const data = await res.json();
     const blogDocuments = data.favorites || [];
     
-    // Convert BlogDocument[] to Blog[]
     const favorites = convertBlogDocumentsToBlog(blogDocuments);
     const favoriteIds = favorites.map(blog => blog.id || '');
 

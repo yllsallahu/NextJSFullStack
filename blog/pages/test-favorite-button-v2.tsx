@@ -240,7 +240,7 @@ export default function FavoriteButtonTestPage({ initialFavorites, initialFavori
                       variant={config.variant}
                       showText={config.showText}
                       onToggleFavorite={() => handleFavoriteToggle(`config-test-${index}`)}
-                      testId={`config-${index}`}
+
                     />
                   </div>
                 ))}
@@ -258,9 +258,9 @@ export default function FavoriteButtonTestPage({ initialFavorites, initialFavori
                     </span>
                     <FavoriteButtonV2
                       blogId={`animation-test-${index}`}
-                      animation={animation}
+
                       onToggleFavorite={() => handleFavoriteToggle(`animation-test-${index}`)}
-                      testId={`animation-${animation}`}
+
                     />
                   </div>
                 ))}
@@ -277,10 +277,10 @@ export default function FavoriteButtonTestPage({ initialFavorites, initialFavori
                   </span>
                   <FavoriteButtonV2
                     blogId="feature-count"
-                    showCount={true}
+
                     showText={true}
                     onToggleFavorite={() => handleFavoriteToggle('feature-count')}
-                    testId="feature-count"
+  
                   />
                 </div>
                 
@@ -292,7 +292,7 @@ export default function FavoriteButtonTestPage({ initialFavorites, initialFavori
                     blogId="feature-disabled"
                     disabled={true}
                     showText={true}
-                    testId="feature-disabled"
+  
                   />
                 </div>
                 
@@ -302,9 +302,9 @@ export default function FavoriteButtonTestPage({ initialFavorites, initialFavori
                   </span>
                   <FavoriteButtonV2
                     blogId="feature-no-tooltip"
-                    showTooltip={false}
+                    
                     onToggleFavorite={() => handleFavoriteToggle('feature-no-tooltip')}
-                    testId="feature-no-tooltip"
+  
                   />
                 </div>
                 
@@ -314,9 +314,9 @@ export default function FavoriteButtonTestPage({ initialFavorites, initialFavori
                   </span>
                   <FavoriteButtonV2
                     blogId="feature-custom-icon"
-                    customIcon={<span>💖</span>}
+                    
                     onToggleFavorite={() => handleFavoriteToggle('feature-custom-icon')}
-                    testId="feature-custom-icon"
+  
                   />
                 </div>
               </div>

@@ -9,20 +9,20 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Don't redirect, just return auth error
-  const session = await getServerSession(req, res, authOptions);
-  
-  if (!session?.user) {
-    // Return empty favorites for GET requests when not authenticated
-    if (req.method === 'GET') {
-      return res.status(200).json({ success: true, favorites: [] });
-    }
-    return res.status(401).json({ error: "Unauthorized", requiresAuth: true });
-  }
-
-  const userId = session.user.id;
-  
   try {
+    // Don't redirect, just return auth error
+    const session = await getServerSession(req, res, authOptions);
+    
+    if (!session?.user) {
+      // Return empty favorites for GET requests when not authenticated
+      if (req.method === 'GET') {
+        return res.status(200).json({ success: true, favorites: [] });
+      }
+      return res.status(401).json({ error: "Unauthorized", requiresAuth: true });
+    }
+
+    const userId = session.user.id;
+    
     if (req.method === 'GET') {
       const favoriteDocs = await getFavoriteBlogs(userId) as BlogDocument[];
       const favorites = convertBlogDocumentsToBlog(favoriteDocs);

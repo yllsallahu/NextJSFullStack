@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from "next-auth/jwt";
-import { addComment, deleteComment, getBlogById } from 'api/services/Blog';
+import { addComment, deleteComment, getBlogById } from '../../../src/api/services/Blog';
 import { ObjectId } from 'mongodb';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -29,7 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const comment = {
           content,
-          author: userId
+          author: userId,
+          createdAt: new Date()
         };
 
         const result = await addComment(blogId, comment);

@@ -8,8 +8,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Only allow GET and PUT methods
-  if (req.method !== 'GET' && req.method !== 'PUT') {
+  // Only allow GET, PUT, PATCH, and DELETE methods
+  if (!['GET', 'PUT', 'PATCH', 'DELETE'].includes(req.method!)) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -46,7 +46,7 @@ export default async function handler(
         }
 
         return res.status(200).json(user);
-      } else if (req.method === 'PUT') {
+      } else if (req.method === 'PUT' || req.method === 'PATCH') {
         // Update user
         const { name, email, isSuperUser } = req.body;
 
@@ -65,6 +65,25 @@ export default async function handler(
         }
 
         return res.status(200).json({ message: 'User updated successfully' });
+      } else if (req.method === 'DELETE') {
+        // Delete user - but only if they're not a superuser
+        const userToDelete = await db.collection('users').findOne({ _id: new ObjectId(id) });
+        
+        if (!userToDelete) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+        
+        if (userToDelete.isSuperUser) {
+          return res.status(403).json({ error: 'Cannot delete superuser accounts' });
+        }
+
+        const result = await db.collection('users').deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        return res.status(200).json({ message: 'User deleted successfully' });
       }
     } catch (error) {
       console.error('Database operation error:', error);
