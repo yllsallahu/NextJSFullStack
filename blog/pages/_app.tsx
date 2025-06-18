@@ -5,7 +5,7 @@ import type { AppProps } from "next/app";
 import { useEffect } from "react";
 import "../styles/globals.css";
 
-function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
+function MyApp({ Component, pageProps: { session, initialFavorites, initialFavoriteIds, ...pageProps } }: AppProps) {
   // Add global authentication tracker
   useEffect(() => {
     // Redirect back to home if we have a nextauth.error in URL (after failed auth)
@@ -35,8 +35,8 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
       refetchWhenOffline={false}
     >
       <FavoritesProvider 
-        initialFavorites={pageProps.initialFavorites || []} 
-        initialFavoriteIds={pageProps.initialFavoriteIds || []}
+        initialFavorites={initialFavorites || []} 
+        initialFavoriteIds={initialFavoriteIds || []}
       >
         <BlogProvider>
           <Component {...pageProps} />

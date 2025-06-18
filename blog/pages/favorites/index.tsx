@@ -5,14 +5,13 @@ import BlogCard from '../../src/components/shared/BlogCard';
 import { Blog } from '../../src/api/models/Blog';
 import { convertBlogDocumentsToBlog } from '../../src/lib/adapters';
 import { useFavorites } from '../../src/lib/contexts/FavoritesContext';
-import { FavoritesProvider } from '../../src/lib/contexts/FavoritesContext';
 
 interface FavoritesPageProps {
   initialFavorites: Blog[];
   initialFavoriteIds: string[];
 }
 
-function FavoritesContent() {
+export default function FavoritesPage({ initialFavorites, initialFavoriteIds }: FavoritesPageProps) {
   const { favorites, isLoading, refreshFavorites } = useFavorites();
 
   return (
@@ -59,14 +58,6 @@ function FavoritesContent() {
         )}
       </div>
     </MainLayout>
-  );
-}
-
-export default function FavoritesPage({ initialFavorites, initialFavoriteIds }: FavoritesPageProps) {
-  return (
-    <FavoritesProvider initialFavorites={initialFavorites} initialFavoriteIds={initialFavoriteIds}>
-      <FavoritesContent />
-    </FavoritesProvider>
   );
 }
 
