@@ -132,7 +132,8 @@ export async function getOrCreateOAuthUser(email: string, name: string, provider
         isSuperUser,
         createdAt: new Date(),
         lastLoginAt: new Date(),
-        oauthLogin: true
+        oauthLogin: true,
+        emailVerified: new Date() // Add this for NextAuth compatibility
       };
       
       const result = await db.collection("users").insertOne(newUser);
@@ -144,19 +145,9 @@ export async function getOrCreateOAuthUser(email: string, name: string, provider
       
       console.log(`Created new user via ${provider} OAuth:`, email);
       
-      // Also add an entry to the accounts collection for compatibility with NextAuth
-      try {
-        await db.collection("accounts").insertOne({
-          userId: result.insertedId,
-          provider: provider,
-          providerAccountId: email, // When we don't have the real provider ID
-          type: "oauth",
-          created_at: new Date(),
-          updated_at: new Date()
-        });
-      } catch (accErr) {
-        console.warn("Non-critical error creating account entry:", accErr);
-      }
+      // Don't create account entry here - let NextAuth handle it
+      // The account creation should be handled by NextAuth's adapter
+      
     } else if (!user.provider || forceLink) {
       console.log(`Updating existing user with OAuth details: ${email}`);
       // If user exists but doesn't have a provider (was created via credentials),
@@ -168,7 +159,8 @@ export async function getOrCreateOAuthUser(email: string, name: string, provider
             provider,
             image: image || user.image,
             lastLoginAt: new Date(),
-            oauthLogin: true
+            oauthLogin: true,
+            emailVerified: new Date() // Add this for NextAuth compatibility
           } 
         }
       );
@@ -176,6 +168,7 @@ export async function getOrCreateOAuthUser(email: string, name: string, provider
       // Update the local user object to reflect the changes
       user.provider = provider;
       user.oauthLogin = true;
+      user.emailVerified = new Date();
       if (image && !user.image) {
         user.image = image;
       }

@@ -5,7 +5,6 @@ import GoogleProvider from "next-auth/providers/google";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import { compare } from "bcryptjs";
 import { getUser, getOrCreateOAuthUser } from "../../../src/api/services/User";
-import { linkOAuthAccount, hasCredentialsAccount } from "../../../src/api/services/linkAccountFix";
 import { Adapter } from "next-auth/adapters";  // Import Adapter type
 
 // Helper function to safely create the MongoDB adapter
@@ -140,7 +139,31 @@ export const authOptions: NextAuthOptions = {
       console.log(`Redirecting to base URL: ${baseUrl}`);
       return baseUrl;
     },    async jwt({ token, user, account, profile }) {
-      if (user) {
+      // Handle OAuth sign-in - fetch fresh user data from database
+      if (account?.provider === 'google' && profile?.email && !token.id) {
+        try {
+          const googleProfile = profile as { picture?: string, email: string, name?: string };
+          
+          // Get the user from database to ensure we have the correct data
+          const dbUser = await getUser(googleProfile.email);
+          if (dbUser) {
+            token.id = dbUser._id.toString();
+            token.isSuperUser = dbUser.isSuperUser || false;
+            token.name = dbUser.name;
+            token.email = dbUser.email;
+            token.provider = 'google';
+            if (googleProfile.picture) {
+              token.picture = googleProfile.picture;
+            }
+            console.log('✅ JWT token populated from database for OAuth user:', googleProfile.email);
+          }
+        } catch (error) {
+          console.error('Error fetching user data for JWT token:', error);
+        }
+      }
+      
+      // Handle regular user object (from credentials login or NextAuth adapter)
+      if (user && !token.id) {
         token.id = user.id;
         token.isSuperUser = user.isSuperUser || false;
       }
@@ -173,8 +196,8 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async signIn({ account, profile }) {
-      // Enhanced handling for Google OAuth sign-in to fix account linking issues
+    async signIn({ account, profile, user }) {
+      // For Google OAuth sign-in
       if (account?.provider === "google" && profile?.email) {
         try {
           console.log('🔑 Processing Google sign-in for:', profile.email);
@@ -184,51 +207,22 @@ export const authOptions: NextAuthOptions = {
           const userEmail = googleProfile.email;
           const profileImage = googleProfile.picture;
           
-          // Check if this email has a credentials account (password-based)
-          const hasCredentials = await hasCredentialsAccount(userEmail);
+          // Ensure user exists in our database
+          const oauthUser = await getOrCreateOAuthUser(
+            userEmail,
+            googleProfile.name || userEmail.split('@')[0],
+            account.provider,
+            profileImage
+          );
           
-          if (hasCredentials) {
-            console.log(`🔄 Email ${userEmail} has existing credentials account. Linking with OAuth...`);
-          }
-          
-          // ALWAYS try the direct link approach for every Google sign-in
-          if (account.providerAccountId) {
-            const linkResult = await linkOAuthAccount(
-              userEmail,
-              account.providerAccountId,
-              account.provider
-            );
-            
-            if (linkResult) {
-              console.log('✅ Successfully linked account for', userEmail);
-              return true;
-            }
-          }
-          
-          // If direct linking didn't work, check if user exists
-          const existingUser = await getUser(userEmail);
-          
-          if (existingUser) {
-            console.log(`👤 Found existing user but couldn't link: ${userEmail}`);
-            
-            // If user exists but we couldn't link, we'll still allow sign-in
-            // The NextAuth adapter should handle this case
+          if (oauthUser) {
+            console.log('✅ User ready for OAuth sign-in:', userEmail);
             return true;
-          } else {
-            console.log(`🆕 Creating new user for ${userEmail}`);
-            // For new users, create a user record
-            const oauthUser = await getOrCreateOAuthUser(
-              userEmail,
-              googleProfile.name || userEmail.split('@')[0],
-              account.provider,
-              profileImage
-            );
-            
-            if (oauthUser) {
-              console.log('✅ New Google account created successfully:', userEmail);
-              return true;
-            }
           }
+          
+          console.log('❌ Failed to create/find user for OAuth sign-in:', userEmail);
+          return false;
+          
         } catch (error) {
           console.error('❌ OAuth sign-in error:', error);
           
@@ -239,7 +233,8 @@ export const authOptions: NextAuthOptions = {
             return true;
           }
           
-          // We should still allow the sign-in since errors here are likely our custom code
+          // Log error but allow sign-in to continue
+          console.warn('Non-critical OAuth error, allowing sign-in to continue:', error);
           return true;
         }
       }
