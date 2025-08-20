@@ -14,7 +14,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="text-xl font-bold text-green-600">
-            CSS Blog
+            Blog
           </Link>
 
           {/* Desktop Navigation */}
@@ -64,7 +64,6 @@ export default function Header() {
                   Favorites
                 </Link>
                 
-                {/* Collections link - commented out for deployment
                 <Link
                   href="/collections"
                   className={`px-3 py-2 rounded-md flex items-center ${
@@ -83,7 +82,6 @@ export default function Header() {
                   </svg>
                   Collections
                 </Link>
-                */}
                 
                 <Link
                   href="/contact"
@@ -104,7 +102,6 @@ export default function Header() {
                   Contact
                 </Link>
                 
-                {/* Dashboard link - commented out for deployment
                 <Link
                   href="/dashboard"
                   className={`px-3 py-2 rounded-md flex items-center ${
@@ -123,7 +120,6 @@ export default function Header() {
                   </svg>
                   Dashboard
                 </Link>
-                */}
               </>
             )}
             {session?.user?.isSuperUser && (
@@ -312,7 +308,6 @@ export default function Header() {
                     Favorites
                   </Link>
                   
-                  {/* Dashboard link - commented out for deployment
                   <Link
                     href="/dashboard"
                     className={`flex items-center px-3 py-2 rounded-md ${
@@ -331,7 +326,6 @@ export default function Header() {
                     </svg>
                     Dashboard
                   </Link>
-                  */}
                 </>
               )}
 
